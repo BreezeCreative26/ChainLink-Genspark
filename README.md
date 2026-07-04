@@ -64,7 +64,7 @@ seeded demo account: `jordan.blake@blakeco.example` / `password123` (see
 | `/login` | Real Supabase Auth login (supports `?redirect=`) |
 | `/signup` | Account creation for guest fallback (supports `?redirect=`) |
 | `/invite/[token]` | Invitation landing page: view, then accept/link/decline |
-| `/dashboard` | Business workspace dashboard (placeholder data — Phase 3) |
+| `/dashboard` | Business dashboard: workload, risk, invites, activity — firm-wide or solo caseload |
 | `/chains` | Your chains, from real data |
 | `/chains/new` | Chain creation form |
 | `/chains/[id]` | Chain workspace: participants, invitations, activity |
@@ -133,6 +133,8 @@ Phase 2–3 per `docs/ROADMAP.md`).
   to create an identity without login credentials — deliberately deferred)
 - Organisation/business account creation and onboarding (memberships and
   organisations currently only exist via seed data or direct DB access)
+- A firm switcher for people belonging to more than one organisation
+  (dashboard uses the first active membership — see `docs/DECISIONS.md`)
 - Tasks UI, and a dedicated internal-notes UI for firms (schema/RLS exist
   for both; only the guest-facing shared comment feed is built so far)
 - Full milestone management for professionals (creating/editing milestones,
@@ -155,3 +157,13 @@ milestones (with a Confirm action on the one seeded as
 restricted to approved categories. Dashboard is hidden from pure guests
 both in navigation and at the route level — see `docs/DECISIONS.md`
 ("Guest experience") for the exact boundary.
+
+## Business dashboard
+
+Log in as the seeded agent (`jordan.blake@blakeco.example` / `password123`)
+to see the firm-wide dashboard: two chains, one flagged at-risk (an
+overdue milestone), one with an upcoming completion, plus pending invites
+and recent activity. The chains table supports status, risk, and search
+filters via the URL, and a branch filter appears automatically once a
+firm has more than one branch — see `docs/DECISIONS.md` ("Business
+dashboard") for how scope and branch visibility are determined.

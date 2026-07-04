@@ -164,3 +164,37 @@ insert into invitations (chain_id, email, role, invited_by_participant_id) value
 
 insert into notifications (profile_id, chain_id, title, body, link_path) values
   ('22222222-2222-2222-2222-222222222222', 'c1111111-1111-1111-1111-111111111111', 'Offer accepted', 'The seller has accepted the offer on 14 Mill Lane.', '/chains/c1111111-1111-1111-1111-111111111111');
+
+-- ── A second chain, for the dashboard to actually have something to
+--    aggregate across (docs/DECISIONS.md, "Business dashboard") ─────────
+-- Same agent (Jordan, Blake & Co.) connected on a second chain, with an
+-- overdue milestone (exercises the at-risk widget and overdue actions
+-- widget) and an upcoming completion (exercises that widget).
+
+insert into chains (id, created_by_profile_id) values
+  ('c2222222-2222-2222-2222-222222222222', '11111111-1111-1111-1111-111111111111')
+on conflict (id) do nothing;
+
+insert into properties (id, chain_id, address_line1, city, postcode, listing_price) values
+  ('d3333333-3333-3333-3333-333333333333', 'c2222222-2222-2222-2222-222222222222', '9 Riverside Court', 'Chester', 'CH3 5EF', 210000.00)
+on conflict (id) do nothing;
+
+insert into chain_participants (id, chain_id, profile_id, role, access_mode, organisation_id) values
+  ('e6666666-6666-6666-6666-666666666666', 'c2222222-2222-2222-2222-222222222222', '11111111-1111-1111-1111-111111111111', 'sellers_agent', 'connected', 'a1111111-1111-1111-1111-111111111111')
+on conflict do nothing;
+
+insert into chain_nodes (id, chain_id, property_id, seller_participant_id, sequence_index) values
+  ('f3333333-3333-3333-3333-333333333333', 'c2222222-2222-2222-2222-222222222222', 'd3333333-3333-3333-3333-333333333333', 'e6666666-6666-6666-6666-666666666666', 1)
+on conflict (id) do nothing;
+
+-- Overdue: due_date in the past, still pending — this is what makes the
+-- chain show up in "At risk" and "Overdue actions".
+insert into milestones (chain_id, chain_node_id, template_id, title, status, due_date) values
+  ('c2222222-2222-2222-2222-222222222222', 'f3333333-3333-3333-3333-333333333333', '22222222-aaaa-2222-aaaa-222222222222', 'Mortgage offer received', 'pending', (current_date - interval '5 days'));
+
+-- Upcoming: due in the future — exercises "Upcoming completions".
+insert into milestones (chain_id, chain_node_id, template_id, title, status, due_date) values
+  ('c2222222-2222-2222-2222-222222222222', 'f3333333-3333-3333-3333-333333333333', '44444444-aaaa-4444-aaaa-444444444444', 'Completion', 'pending', (current_date + interval '10 days'));
+
+insert into activity_logs (chain_id, actor_participant_id, action, entity_type, entity_id, source) values
+  ('c2222222-2222-2222-2222-222222222222', 'e6666666-6666-6666-6666-666666666666', 'chain.created', 'chain', 'c2222222-2222-2222-2222-222222222222', 'manual');

@@ -273,6 +273,30 @@ export interface Database {
         };
         Update: Partial<Database["public"]["Tables"]["notes"]["Row"]>;
       };
+      tasks: {
+        Row: {
+          id: string;
+          chain_id: string;
+          milestone_id: string | null;
+          title: string;
+          description: string | null;
+          assigned_to_participant_id: string | null;
+          status: "open" | "in_progress" | "done";
+          due_date: string | null;
+          visibility: "shared" | "internal";
+          organisation_id: string | null;
+          source: "manual" | "proxy" | "system";
+          created_by_participant_id: string | null;
+          on_behalf_of_participant_id: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: Partial<Database["public"]["Tables"]["tasks"]["Row"]> & {
+          chain_id: string;
+          title: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["tasks"]["Row"]>;
+      };
       notifications: {
         Row: {
           id: string;

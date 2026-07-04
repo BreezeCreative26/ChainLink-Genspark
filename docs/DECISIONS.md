@@ -172,15 +172,57 @@ it should always reflect the current reasoning, not just the current state.
   redirects server-side for a pure guest — the route guard is the one that
   actually matters; the nav hiding is a courtesy, not the enforcement.
 
+### Business dashboard (added when the dashboard layer was implemented)
+
+- **Risk is computed at query time from existing data, not stored.**
+  Resolves the "Risk indicator computation" open question below: a chain
+  is flagged at-risk if it has an overdue milestone, has had no activity
+  in 14 days, or its status is `stalled` — no new `risk_indicators` table.
+  A manual override/flag is a plausible future addition; nothing in this
+  MVP needed it yet.
+- **Historical visibility on connection is "full history, always."**
+  Resolves the other open question below: once a participant is
+  `connected`, their firm's dashboard reads the chain's entire activity,
+  not just activity from the point of connection onward. Rationale:
+  partial history is more confusing than useful for a dashboard whose job
+  is to show risk and workload accurately — a firm assessing a chain's
+  risk needs to know it's been quiet for three weeks even if they only
+  joined yesterday.
+- **A structural RLS gap was found and closed, not designed in from the
+  start.** Every policy through migration 0013 was participant-scoped —
+  nothing let a firm see a colleague's chain unless the viewer was
+  personally on it, which made the entire "numerous chains in one place"
+  business dashboard concept impossible. `0014_dashboard_read_visibility.sql`
+  adds `is_org_connected_to_chain()` and new SELECT-only policies across
+  chains/participants/properties/milestones/tasks/activity/invitations/
+  documents/notes (plus the matching Storage policy). Deliberately
+  SELECT-only: firm-wide dashboard visibility must never quietly grant
+  firm-wide edit rights on chains someone isn't personally attached to.
+- **Dashboard has two modes, resolved by organisation membership.** A
+  person with an active membership gets the firm-wide view (every chain
+  any member of that org is connected to); a person without one — e.g. a
+  solo proxy-mode agent — gets a personal view of their own
+  connected/proxy chains. This is what keeps "the platform must work even
+  if only one agent uses it" true at the dashboard layer specifically, not
+  just at the chain-workspace layer.
+- **Branch scoping is role-based, not user-configurable for non-admins.**
+  Owners/admins can filter by branch (or see everything); everyone else is
+  scoped to their own branch automatically, and a branch query parameter
+  from a non-admin is ignored rather than honoured — this can't be
+  widened by tampering with a URL.
+- **A chain's "branch" is inferred from its connected participant's
+  membership, not stored on the chain.** Chains don't have a branch_id;
+  branch scoping is computed by joining the org's connected participants
+  to their own membership records. This avoids adding a redundant
+  denormalized field that could drift from the truth (a chain's real
+  branch is "whichever branch the connected agent belongs to").
+- **One organisation membership drives the dashboard, even if a person
+  belongs to more than one firm.** Multi-firm membership is a real but
+  rare case — see the open question below.
+
 ## Open Questions (Unresolved)
 
-- **Historical visibility on connection**: when a professional's chain
-  becomes "connected" into their firm's business workspace, does the firm see
-  the chain's full history from creation, or only activity from the point of
-  connection onward? (Schema supports either — this is a query/business-logic
-  decision, not a schema one — but should be settled before the dashboard is
-  built.)
-- **Risk indicator computation**: are risk indicators manually flagged only
-  in early phases, or is there an early case for simple rule-based automatic
-  flagging (e.g. "no activity in 14 days")? Not part of the MVP schema (no
-  `risk_indicators` table yet) — affects Phase 3 scope.
+- **Multiple simultaneous organisation memberships**: the dashboard
+  currently reflects only a person's first active membership. A firm
+  switcher UI is the natural fix once someone genuinely needs it — not
+  built speculatively now.
