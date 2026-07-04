@@ -1,7 +1,10 @@
+import { redirect } from "next/navigation";
 import { Link2, AlertTriangle, Milestone, CheckCircle2 } from "lucide-react";
 
 import { PageHeader } from "@/components/layout/page-header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { createClient } from "@/lib/supabase/server";
+import { currentUserHasProfessionalStanding } from "@/server/services/chains";
 
 const SUMMARY_CARDS = [
   { label: "Active chains", value: "—", icon: Link2 },
@@ -10,7 +13,18 @@ const SUMMARY_CARDS = [
   { label: "Completed this month", value: "—", icon: CheckCircle2 },
 ];
 
-export default function DashboardPage() {
+export default async function DashboardPage() {
+  const supabase = createClient();
+
+  // Belt-and-braces: the sidebar already hides this link for pure guests,
+  // but the route itself must not be reachable just by typing the URL —
+  // "guests must not see business dashboards" is a hard requirement, not a
+  // UI nicety.
+  const hasProfessionalStanding = await currentUserHasProfessionalStanding(supabase);
+  if (!hasProfessionalStanding) {
+    redirect("/chains");
+  }
+
   return (
     <div>
       <PageHeader

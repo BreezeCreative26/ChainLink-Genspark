@@ -6,6 +6,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { createClient } from "@/lib/supabase/server";
 import { getChainDetail } from "@/server/services/chains";
 import { InvitationsPanel } from "@/app/(app)/chains/[id]/invitations-panel";
+import { MilestonesPanel } from "@/app/(app)/chains/[id]/milestones-panel";
+import { DocumentsPanel } from "@/app/(app)/chains/[id]/documents-panel";
+import { CommentsPanel } from "@/app/(app)/chains/[id]/comments-panel";
 
 const ROLE_LABELS: Record<string, string> = {
   seller: "Seller",
@@ -29,6 +32,9 @@ const ACTION_LABELS: Record<string, string> = {
   "invitation.accepted": "Invitation accepted",
   "invitation.linked": "Invitation accepted and linked to a firm",
   "invitation.declined": "Invitation declined",
+  "milestone.confirmed": "Milestone confirmed",
+  "document.uploaded": "Document uploaded",
+  "comment.added": "Comment added",
 };
 
 export default async function ChainDetailPage({
@@ -45,7 +51,7 @@ export default async function ChainDetailPage({
     notFound();
   }
 
-  const { chain, activity, invitations } = detail;
+  const { chain, activity, invitations, milestones, documents, comments } = detail;
   if (!chain) notFound();
 
   const {
@@ -55,6 +61,24 @@ export default async function ChainDetailPage({
   const property = chain.properties?.[0];
   const participants = chain.chain_participants ?? [];
   const myParticipant = participants.find((p) => p.profile_id === user?.id);
+  const isGuest = myParticipant?.access_mode === "guest";
+
+  const commentRows = comments.map((c) => {
+    const participant = Array.isArray(c.chain_participants)
+      ? c.chain_participants[0]
+      : c.chain_participants;
+    const profile = participant
+      ? Array.isArray(participant.profiles)
+        ? participant.profiles[0]
+        : participant.profiles
+      : null;
+    return {
+      id: c.id,
+      body: c.body,
+      created_at: c.created_at,
+      authorName: profile?.full_name ?? profile?.email ?? "Someone",
+    };
+  });
 
   return (
     <div>
@@ -70,79 +94,146 @@ export default async function ChainDetailPage({
         }
       />
 
+      {isGuest && (
+        <div className="mb-4 rounded-md border border-border bg-secondary/40 px-4 py-2 text-xs text-muted-foreground">
+          You have guest access to this one chain. You can see shared updates,
+          confirm anything asked of you, comment, and upload documents you're
+          asked for.
+        </div>
+      )}
+
       <div className="grid gap-4 lg:grid-cols-3">
-        <Card className="lg:col-span-2">
-          <CardHeader>
-            <CardTitle>Activity</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {activity.length === 0 ? (
-              <div className="flex h-40 items-center justify-center rounded-md border border-dashed border-border text-sm text-muted-foreground">
-                No activity yet.
-              </div>
-            ) : (
-              <ul className="space-y-3">
-                {activity.map((entry) => (
-                  <li key={entry.id} className="flex items-start justify-between gap-3 border-b border-border pb-3 last:border-0 last:pb-0">
-                    <div>
-                      <p className="text-sm font-medium text-foreground">
-                        {ACTION_LABELS[entry.action] ?? entry.action}
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        {new Date(entry.created_at).toLocaleString("en-GB")}
-                      </p>
-                    </div>
-                    {entry.source === "proxy" && (
-                      <Badge variant="secondary" className="text-[10px]">
-                        Entered by proxy
-                      </Badge>
-                    )}
-                  </li>
-                ))}
-              </ul>
-            )}
-          </CardContent>
-        </Card>
+        <div className="space-y-4 lg:col-span-2">
+          <Card>
+            <CardHeader>
+              <CardTitle>Milestones</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <MilestonesPanel
+                chainId={chain.id}
+                myParticipantId={myParticipant?.id ?? null}
+                isGuest={isGuest}
+                milestones={milestones}
+              />
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Comments</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <CommentsPanel
+                chainId={chain.id}
+                myParticipantId={myParticipant?.id ?? null}
+                comments={commentRows}
+              />
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Documents</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <DocumentsPanel
+                chainId={chain.id}
+                myParticipantId={myParticipant?.id ?? null}
+                documents={documents}
+              />
+            </CardContent>
+          </Card>
+
+          {!isGuest && (
+            <Card>
+              <CardHeader>
+                <CardTitle>Activity</CardTitle>
+              </CardHeader>
+              <CardContent>
+                {activity.length === 0 ? (
+                  <div className="flex h-32 items-center justify-center rounded-md border border-dashed border-border text-sm text-muted-foreground">
+                    No activity yet.
+                  </div>
+                ) : (
+                  <ul className="space-y-3">
+                    {activity.map((entry) => (
+                      <li key={entry.id} className="flex items-start justify-between gap-3 border-b border-border pb-3 last:border-0 last:pb-0">
+                        <div>
+                          <p className="text-sm font-medium text-foreground">
+                            {ACTION_LABELS[entry.action] ?? entry.action}
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            {new Date(entry.created_at).toLocaleString("en-GB")}
+                          </p>
+                        </div>
+                        {entry.source === "proxy" && (
+                          <Badge variant="secondary" className="text-[10px]">
+                            Entered by proxy
+                          </Badge>
+                        )}
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </CardContent>
+            </Card>
+          )}
+        </div>
 
         <div className="space-y-4">
           <Card>
             <CardHeader>
-              <CardTitle>Participants</CardTitle>
+              <CardTitle>{isGuest ? "Who's involved" : "Participants"}</CardTitle>
             </CardHeader>
             <CardContent>
               {participants.length === 0 ? (
-                <div className="flex h-40 items-center justify-center rounded-md border border-dashed border-border text-sm text-muted-foreground">
+                <div className="flex h-32 items-center justify-center rounded-md border border-dashed border-border text-sm text-muted-foreground">
                   No participants yet.
                 </div>
               ) : (
                 <ul className="space-y-3">
-                  {participants.map((p) => (
-                    <li key={p.id} className="flex items-center justify-between">
-                      <span className="text-sm text-foreground">
-                        {ROLE_LABELS[p.role] ?? p.role}
-                      </span>
-                      <Badge variant="outline" className="text-[10px]">
-                        {ACCESS_MODE_LABELS[p.access_mode] ?? p.access_mode}
-                      </Badge>
-                    </li>
-                  ))}
+                  {participants.map((p) => {
+                    const profile = Array.isArray(p.profiles) ? p.profiles[0] : p.profiles;
+                    return (
+                      <li key={p.id} className="flex items-center justify-between gap-2">
+                        <div className="min-w-0">
+                          <p className="truncate text-sm text-foreground">
+                            {profile?.full_name ?? profile?.email ?? ROLE_LABELS[p.role]}
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            {ROLE_LABELS[p.role] ?? p.role}
+                          </p>
+                        </div>
+                        {/* Access mode / firm affiliation is internal detail —
+                            not shown to guests, per docs/OPERATING_MODEL.md
+                            ("guests must not see business dashboards"). */}
+                        {!isGuest && (
+                          <Badge variant="outline" className="shrink-0 text-[10px]">
+                            {ACCESS_MODE_LABELS[p.access_mode] ?? p.access_mode}
+                          </Badge>
+                        )}
+                      </li>
+                    );
+                  })}
                 </ul>
               )}
             </CardContent>
           </Card>
 
-          <Card>
-            <CardHeader>
-              <CardTitle>Invitations</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <InvitationsPanel
-                chainId={chain.id}
-                myParticipantId={myParticipant?.id ?? null}
-                invitations={invitations}
-              />
-            </CardContent>
-          </Card>
+          {!isGuest && (
+            <Card>
+              <CardHeader>
+                <CardTitle>Invitations</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <InvitationsPanel
+                  chainId={chain.id}
+                  myParticipantId={myParticipant?.id ?? null}
+                  invitations={invitations}
+                />
+              </CardContent>
+            </Card>
+          )}
         </div>
       </div>
     </div>

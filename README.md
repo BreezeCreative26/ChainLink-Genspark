@@ -133,11 +133,25 @@ Phase 2–3 per `docs/ROADMAP.md`).
   to create an identity without login credentials — deliberately deferred)
 - Organisation/business account creation and onboarding (memberships and
   organisations currently only exist via seed data or direct DB access)
-- Milestones, tasks, notes, and documents UI (schema exists; not wired to
-  the client yet)
+- Tasks UI, and a dedicated internal-notes UI for firms (schema/RLS exist
+  for both; only the guest-facing shared comment feed is built so far)
+- Full milestone management for professionals (creating/editing milestones,
+  applying a template to a new chain) — guests can only confirm
+  pre-flagged ones; professionals currently see the same read-only list
 - Chain creation is not atomic yet — see the note in
   `src/server/services/chains.ts` on why, and when that gets revisited
 - Resending an expired/revoked invitation (currently: send a new one)
 - Billing
 
 These follow the phased order in `docs/ROADMAP.md`.
+
+## Guest experience
+
+Log in as the seeded guest buyer (`priya.shah@example.com` — set a
+password for this account via the Supabase dashboard, or sign up a fresh
+guest account and have it invited) to see the guest-scoped chain view:
+milestones (with a Confirm action on the one seeded as
+`guest_confirmable`), a shared comment feed, and document upload
+restricted to approved categories. Dashboard is hidden from pure guests
+both in navigation and at the route level — see `docs/DECISIONS.md`
+("Guest experience") for the exact boundary.

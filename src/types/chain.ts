@@ -56,6 +56,29 @@ export interface CreateChainInput {
   initialInvitations: InitialInvitationInput[];
 }
 
+export type MilestoneStatus =
+  Database["public"]["Tables"]["milestones"]["Row"]["status"];
+
+export type DocumentCategory = NonNullable<
+  Database["public"]["Tables"]["documents"]["Row"]["category"]
+>;
+
+export const DOCUMENT_CATEGORY_LABELS: Record<DocumentCategory, string> = {
+  id_verification: "ID verification",
+  proof_of_funds: "Proof of funds",
+  proof_of_address: "Proof of address",
+  mortgage_offer: "Mortgage offer",
+  other: "Other",
+};
+
+/**
+ * A person's standing on ONE specific chain — not a global role. The same
+ * profile can be 'connected' on one chain and 'guest' on another
+ * simultaneously (docs/ARCHITECTURE.md, "Access is scoped at the
+ * participant level, not the user level").
+ */
+export type ViewerAccessMode = AccessMode | null;
+
 export interface ChainSummary {
   id: string;
   chainRef: string;

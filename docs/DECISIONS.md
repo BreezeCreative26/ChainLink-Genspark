@@ -128,6 +128,50 @@ it should always reflect the current reasoning, not just the current state.
   depends on the Supabase project's auth settings, not on ChainLink's own
   code — see the caveat in `src/app/(auth)/signup/signup-form.tsx`.
 
+### Guest experience (added when the guest one-chain view was implemented)
+
+- **"Guest-visible" is not a third visibility tier.** It's the same thing
+  as `shared` — a guest sees exactly the shared content any chain
+  participant sees, nothing more, nothing differently labelled. The
+  two-tier model from `docs/OPERATING_MODEL.md` is unchanged.
+- **Comments reuse the `notes` table rather than a new one.** A guest
+  "comment" and a firm's internal "note" are the same shape (free text,
+  attributed, timestamped) — they differ only in `visibility`. The
+  guest-facing UI only ever writes `visibility = 'shared'`; a dedicated
+  internal-notes UI for firms is still unbuilt (schema and RLS already
+  support it).
+- **A guest may confirm ONLY milestones explicitly flagged
+  `guest_confirmable`, enforced by a database trigger, not just
+  application code.** The trigger (`enforce_guest_milestone_confirmation`,
+  `0012_guest_capabilities.sql`) also restricts a guest's update to the
+  `status`/`completed_at`/`source`/`recorded_by_participant_id` columns
+  only — a guest cannot use a legitimate confirm action as a vector to
+  change a milestone's title, due date, or visibility. This is real
+  defense-in-depth: it holds even against a crafted direct API call that
+  bypasses the application's service layer entirely.
+- **"Approved documents" means a fixed category enum, not a review
+  workflow.** A guest upload must carry one of five recognized categories
+  (ID verification, proof of funds, proof of address, mortgage offer,
+  other), enforced by a `CHECK` constraint plus a restrictive RLS policy
+  requiring guests specifically to supply one. A real per-firm approval
+  workflow (e.g. "only accept documents a conveyancer has pre-requested")
+  is a plausible future upgrade, not this MVP's scope.
+- **Document storage is real, not deferred.** A Supabase Storage bucket
+  (`chain-documents`) and matching object-level policies were added now
+  rather than left for later — a "guest can upload documents" feature that
+  doesn't actually store a file isn't meaningfully built. Storage
+  read-access mirrors the `documents` table's own visibility rule exactly
+  (`0013_document_storage.sql`), rather than relying on the storage path
+  convention alone, so a guest can't probe another chain's files by
+  guessing folder names.
+- **"No business dashboards for guests" is evaluated globally per person,
+  not per chain.** Being a guest on THIS chain doesn't hide Dashboard if
+  the same person has genuine `connected` or `proxy` standing on some
+  other chain — Dashboard reflects their overall professional standing.
+  The nav item is hidden client-side AND the `/dashboard` route
+  redirects server-side for a pure guest — the route guard is the one that
+  actually matters; the nav hiding is a courtesy, not the enforcement.
+
 ## Open Questions (Unresolved)
 
 - **Historical visibility on connection**: when a professional's chain

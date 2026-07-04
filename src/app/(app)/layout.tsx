@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 
 import { createClient } from "@/lib/supabase/server";
 import { AppShell } from "@/components/layout/app-shell";
+import { currentUserHasProfessionalStanding } from "@/server/services/chains";
 
 export default async function AppLayout({
   children,
@@ -17,11 +18,14 @@ export default async function AppLayout({
     redirect("/login");
   }
 
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("full_name, email")
-    .eq("id", user.id)
-    .single();
+  const [{ data: profile }, hasProfessionalStanding] = await Promise.all([
+    supabase.from("profiles").select("full_name, email").eq("id", user.id).single(),
+    currentUserHasProfessionalStanding(supabase),
+  ]);
 
-  return <AppShell profile={profile}>{children}</AppShell>;
+  return (
+    <AppShell profile={profile} showDashboard={hasProfessionalStanding}>
+      {children}
+    </AppShell>
+  );
 }

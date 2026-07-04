@@ -58,14 +58,24 @@ reasoning, this file for the specifics.
 ### Content tables
 
 - **`milestone_templates`** — reusable milestone sets, either global
-  (`organisation_id is null`) or firm-specific.
+  (`organisation_id is null`) or firm-specific. Carries `guest_confirmable`,
+  inherited by milestones created from the template.
 - **`milestones`** — chain-wide or per-node (`chain_node_id` nullable).
+  `guest_confirmable` (boolean) marks milestones a guest is allowed to mark
+  complete themselves (e.g. "ID documents submitted") — see "Guest
+  confirmation safety" below.
 - **`tasks`** — assignable to a `chain_participants` row; defaults to
   `internal` visibility (most tasks are a firm's own working items).
-- **`notes`** — free text, defaults to `internal`.
+- **`notes`** — free text, defaults to `internal`. Also doubles as guest
+  "comments" when `visibility = 'shared'` — see `docs/DECISIONS.md`
+  ("Guest experience") for why this isn't a separate table.
 - **`documents`** — metadata only; binary content lives in Supabase
-  Storage at `storage_path`, with bucket policies mirroring this table's
-  visibility rules.
+  Storage at `storage_path` (bucket `chain-documents`), with object-level
+  policies mirroring this table's visibility rules exactly
+  (`0013_document_storage.sql`). `category` is a fixed enum (ID
+  verification / proof of funds / proof of address / mortgage offer /
+  other) — required specifically for guest uploads, enforced by a
+  restrictive policy.
 - **`activity_logs`** — generic, immutable audit trail (`entity_type` +
   `entity_id` rather than one row-type per action).
 - **`notifications`** — per-profile, not per-participant, since a person
@@ -116,6 +126,28 @@ needed. When a guest professional later joins a firm, their existing
 `chain_participants` rows are simply queried by `profile_id` and offered
 for linking (updating `access_mode` to `connected` and setting
 `organisation_id`).
+
+## Guest Confirmation Safety
+
+Guests need to be able to confirm certain things (e.g. "I've submitted my
+ID documents") without gaining general edit rights over milestones — a
+buyer marking "Exchange of contracts" complete themselves would be a real
+problem. Two layers enforce this:
+
+1. **RLS** (`milestones_update`, `0012_guest_capabilities.sql`) — a
+   baseline "any chain member can update a shared milestone" rule.
+2. **A `BEFORE UPDATE` trigger** (`enforce_guest_milestone_confirmation`)
+   that, specifically when the acting user's access_mode on that chain is
+   `guest`, additionally requires: the row must already be
+   `guest_confirmable` and `shared`; the new status must be `completed`;
+   and every other column (title, due date, visibility, template,
+   organisation, etc.) must be unchanged from the existing row.
+
+Non-guests are unaffected by the trigger — it returns immediately for
+them. This is deliberate defense-in-depth: the application's service layer
+(`src/server/services/milestones.ts`) only ever sends a narrow update, but
+the trigger holds even if that guarantee were ever bypassed (a bug, a
+future code path, a direct API call).
 
 ## Row Level Security
 

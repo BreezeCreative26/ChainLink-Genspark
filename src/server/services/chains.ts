@@ -5,6 +5,9 @@ import type { AccessMode, ChainCreatorRole, CreateChainInput } from "@/types/cha
 import * as chainsRepo from "@/server/repositories/chains.repository";
 import * as invitationsRepo from "@/server/repositories/invitations.repository";
 import { sendInvitation } from "@/server/services/invitations";
+import { listMilestones } from "@/server/services/milestones";
+import { listDocuments } from "@/server/services/documents";
+import { listComments } from "@/server/services/notes";
 
 type TypedClient = SupabaseClient<Database>;
 
@@ -144,11 +147,23 @@ export async function listChainsForCurrentUser(supabase: TypedClient) {
 }
 
 export async function getChainDetail(supabase: TypedClient, chainId: string) {
-  const [chain, activity, invitations] = await Promise.all([
+  const [chain, activity, invitations, milestones, documents, comments] = await Promise.all([
     chainsRepo.getChainByIdForProfile(supabase, chainId),
     chainsRepo.listActivityForChain(supabase, chainId),
     invitationsRepo.listInvitationsForChain(supabase, chainId),
+    listMilestones(supabase, chainId),
+    listDocuments(supabase, chainId),
+    listComments(supabase, chainId),
   ]);
 
-  return { chain, activity, invitations };
+  return { chain, activity, invitations, milestones, documents, comments };
+}
+
+export async function currentUserHasProfessionalStanding(supabase: TypedClient) {
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) return false;
+  return chainsRepo.hasNonGuestParticipation(supabase, user.id);
 }

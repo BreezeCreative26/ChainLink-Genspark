@@ -130,7 +130,7 @@ export async function getChainByIdForProfile(supabase: TypedClient, chainId: str
     .select(
       `
       id, chain_ref, status, created_at,
-      chain_participants ( id, role, access_mode, organisation_id, status, profile_id ),
+      chain_participants ( id, role, access_mode, organisation_id, status, profile_id, profiles ( full_name, email ) ),
       properties ( id, address_line1, address_line2, city, postcode, listing_price )
     `
     )
@@ -164,4 +164,24 @@ export async function listActivityForChain(supabase: TypedClient, chainId: strin
 
   if (error) throw error;
   return data;
+}
+
+/**
+ * True if the user has 'connected' or 'proxy' standing on ANY chain —
+ * i.e. they are not a pure guest anywhere. Used to gate the business
+ * dashboard nav item (docs: "guests must not see business dashboards").
+ * Being a guest on THIS chain doesn't matter here; this is deliberately
+ * global, since Dashboard reflects a person's overall professional
+ * standing, not any one chain.
+ */
+export async function hasNonGuestParticipation(supabase: TypedClient, profileId: string) {
+  const { count, error } = await supabase
+    .from("chain_participants")
+    .select("id", { count: "exact", head: true })
+    .eq("profile_id", profileId)
+    .eq("status", "active")
+    .in("access_mode", ["connected", "proxy"]);
+
+  if (error) throw error;
+  return (count ?? 0) > 0;
 }

@@ -186,6 +186,93 @@ export interface Database {
         };
         Update: Partial<Database["public"]["Tables"]["activity_logs"]["Row"]>;
       };
+      milestone_templates: {
+        Row: {
+          id: string;
+          organisation_id: string | null;
+          name: string;
+          description: string | null;
+          default_sequence_index: number;
+          guest_confirmable: boolean;
+          created_at: string;
+        };
+        Insert: Partial<Database["public"]["Tables"]["milestone_templates"]["Row"]> & {
+          name: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["milestone_templates"]["Row"]>;
+      };
+      milestones: {
+        Row: {
+          id: string;
+          chain_id: string;
+          chain_node_id: string | null;
+          template_id: string | null;
+          title: string;
+          status: "pending" | "in_progress" | "completed" | "blocked";
+          due_date: string | null;
+          completed_at: string | null;
+          visibility: "shared" | "internal";
+          organisation_id: string | null;
+          guest_confirmable: boolean;
+          source: "manual" | "proxy" | "system";
+          recorded_by_participant_id: string | null;
+          on_behalf_of_participant_id: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: Partial<Database["public"]["Tables"]["milestones"]["Row"]> & {
+          chain_id: string;
+          title: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["milestones"]["Row"]>;
+      };
+      documents: {
+        Row: {
+          id: string;
+          chain_id: string;
+          chain_node_id: string | null;
+          title: string;
+          storage_path: string;
+          mime_type: string | null;
+          size_bytes: number | null;
+          visibility: "shared" | "internal";
+          organisation_id: string | null;
+          category:
+            | "id_verification"
+            | "proof_of_funds"
+            | "proof_of_address"
+            | "mortgage_offer"
+            | "other"
+            | null;
+          uploaded_by_participant_id: string | null;
+          created_at: string;
+        };
+        Insert: Partial<Database["public"]["Tables"]["documents"]["Row"]> & {
+          chain_id: string;
+          title: string;
+          storage_path: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["documents"]["Row"]>;
+      };
+      notes: {
+        Row: {
+          id: string;
+          chain_id: string;
+          chain_node_id: string | null;
+          body: string;
+          visibility: "shared" | "internal";
+          organisation_id: string | null;
+          source: "manual" | "proxy";
+          created_by_participant_id: string | null;
+          on_behalf_of_participant_id: string | null;
+          created_at: string;
+        };
+        Insert: Partial<Database["public"]["Tables"]["notes"]["Row"]> & {
+          chain_id: string;
+          body: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["notes"]["Row"]>;
+      };
       notifications: {
         Row: {
           id: string;

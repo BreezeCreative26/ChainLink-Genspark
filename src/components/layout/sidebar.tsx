@@ -14,8 +14,13 @@ import { cn } from "@/lib/utils";
 import { LogoWithWordmark } from "@/components/layout/logo-mark";
 import type { NavItem } from "@/types/nav";
 
-const NAV_ITEMS: NavItem[] = [
-  { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
+const ALL_NAV_ITEMS: (NavItem & { requiresProfessionalStanding?: boolean })[] = [
+  {
+    label: "Dashboard",
+    href: "/dashboard",
+    icon: LayoutDashboard,
+    requiresProfessionalStanding: true,
+  },
   { label: "Chains", href: "/chains", icon: Link2 },
   { label: "Tasks", href: "/tasks", icon: ListChecks },
   { label: "Documents", href: "/documents", icon: FileText },
@@ -25,10 +30,18 @@ const NAV_ITEMS: NavItem[] = [
 interface SidebarProps {
   className?: string;
   onNavigate?: () => void;
+  showDashboard: boolean;
 }
 
-export function Sidebar({ className, onNavigate }: SidebarProps) {
+export function Sidebar({ className, onNavigate, showDashboard }: SidebarProps) {
   const pathname = usePathname();
+
+  // Dashboard is the business workspace — a pure guest (no connected/proxy
+  // standing anywhere) never sees it, per docs/OPERATING_MODEL.md ("Guest
+  // User Logic": no dashboard, no cross-chain view).
+  const navItems = ALL_NAV_ITEMS.filter(
+    (item) => !item.requiresProfessionalStanding || showDashboard
+  );
 
   return (
     <aside
@@ -42,7 +55,7 @@ export function Sidebar({ className, onNavigate }: SidebarProps) {
       </div>
 
       <nav className="flex-1 space-y-1 px-3 py-4">
-        {NAV_ITEMS.map((item) => {
+        {navItems.map((item) => {
           const isActive =
             item.href === "/dashboard"
               ? pathname === item.href
@@ -67,12 +80,6 @@ export function Sidebar({ className, onNavigate }: SidebarProps) {
           );
         })}
       </nav>
-
-      <div className="border-t border-border p-4">
-        <p className="text-xs text-muted-foreground">
-          Proxy mode &middot; single-agent workspace
-        </p>
-      </div>
     </aside>
   );
 }

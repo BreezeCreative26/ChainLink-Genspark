@@ -19,16 +19,18 @@ import { cn } from "@/lib/utils";
 export function AppShell({
   children,
   profile,
+  showDashboard,
 }: {
   children: React.ReactNode;
   profile: { full_name: string | null; email: string } | null;
+  showDashboard: boolean;
 }) {
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
 
   return (
     <div className="flex h-dvh overflow-hidden bg-background">
       {/* Desktop sidebar */}
-      <Sidebar className="hidden md:flex" />
+      <Sidebar className="hidden md:flex" showDashboard={showDashboard} />
 
       {/* Mobile sidebar drawer */}
       {mobileNavOpen && (
@@ -41,6 +43,7 @@ export function AppShell({
           <Sidebar
             className={cn("relative z-50 flex")}
             onNavigate={() => setMobileNavOpen(false)}
+            showDashboard={showDashboard}
           />
         </div>
       )}
