@@ -1,0 +1,64 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/*
+  ChainLink design tokens.
+
+  Palette rationale (see docs/ARCHITECTURE.md for product context):
+  - Deep teal brand color: distinct from generic SaaS blue/purple, reads as
+    trustworthy and professional — appropriate for agents/conveyancers
+    handling legal and financial transactions.
+  - Ink neutrals rather than pure black/gray for a warmer, less clinical feel.
+  - Mono face reserved for Chain IDs and reference codes throughout the
+    product — a small consistent signature tying every screen back to the
+    core object of the platform.
+*/
+
+@layer base {
+  :root {
+    --background: 210 20% 98%;
+    --foreground: 222 39% 11%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 222 39% 11%;
+
+    --primary: 186 62% 24%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 220 14% 96%;
+    --secondary-foreground: 222 39% 11%;
+
+    --muted: 220 14% 96%;
+    --muted-foreground: 220 9% 42%;
+
+    --accent: 186 45% 94%;
+    --accent-foreground: 186 62% 20%;
+
+    --destructive: 4 62% 40%;
+    --destructive-foreground: 0 0% 100%;
+
+    --success: 152 45% 30%;
+    --success-foreground: 0 0% 100%;
+
+    --brand: 186 62% 24%;
+    --brand-foreground: 0 0% 100%;
+    --brand-tint: 186 45% 94%;
+
+    --border: 220 14% 90%;
+    --input: 220 14% 90%;
+    --ring: 186 62% 24%;
+
+    --radius: 0.625rem;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+    font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+  }
+}
