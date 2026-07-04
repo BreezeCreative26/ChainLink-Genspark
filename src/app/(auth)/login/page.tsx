@@ -1,7 +1,5 @@
 import Link from "next/link";
 
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import {
   Card,
   CardHeader,
@@ -10,6 +8,7 @@ import {
   CardContent,
   CardFooter,
 } from "@/components/ui/card";
+import { LoginForm } from "@/app/(auth)/login/login-form";
 
 export default function LoginPage() {
   return (
@@ -20,25 +19,8 @@ export default function LoginPage() {
           Access your chains and, if connected, your firm&apos;s dashboard.
         </CardDescription>
       </CardHeader>
-      <CardContent className="space-y-4">
-        <div className="space-y-2">
-          <label htmlFor="email" className="text-sm font-medium text-foreground">
-            Email
-          </label>
-          <Input id="email" type="email" placeholder="you@example.com" disabled />
-        </div>
-        <div className="space-y-2">
-          <label htmlFor="password" className="text-sm font-medium text-foreground">
-            Password
-          </label>
-          <Input id="password" type="password" placeholder="••••••••" disabled />
-        </div>
-        <Button className="w-full" disabled>
-          Log in
-        </Button>
-        <p className="text-center text-xs text-muted-foreground">
-          Auth is not wired up yet — this is a foundation-stage placeholder.
-        </p>
+      <CardContent>
+        <LoginForm />
       </CardContent>
       <CardFooter className="justify-center">
         <p className="text-sm text-muted-foreground">

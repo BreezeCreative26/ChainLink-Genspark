@@ -42,24 +42,30 @@ npm install
 cp .env.example .env.local
 
 # 3. Fill in .env.local with your Supabase project credentials
-#    (not required yet to run the app — no Supabase calls are made
-#    in this foundation scaffold — but set it up now to save time later)
+#    (required now — auth and chain creation call Supabase directly)
 
-# 4. Run the dev server
+# 4. Apply the database schema (requires the Supabase CLI, linked to your
+#    project) and load the demo seed data
+supabase db reset
+
+# 5. Run the dev server
 npm run dev
 ```
 
-The app will be available at `http://localhost:3000`.
+The app will be available at `http://localhost:3000`. Log in with the
+seeded demo account: `jordan.blake@blakeco.example` / `password123` (see
+`supabase/seed.sql` for the other seeded accounts).
 
 ### Available routes
 
 | Route | Purpose |
 |---|---|
 | `/` | Public marketing homepage |
-| `/login` | Auth placeholder (not yet wired to Supabase) |
-| `/dashboard` | Business workspace dashboard (placeholder data) |
-| `/chains` | List of chains (placeholder, empty state) |
-| `/chains/[id]` | Single chain workspace (placeholder) |
+| `/login` | Real Supabase Auth login |
+| `/dashboard` | Business workspace dashboard (placeholder data — Phase 3) |
+| `/chains` | Your chains, from real data |
+| `/chains/new` | Chain creation form |
+| `/chains/[id]` | Chain workspace: participants + activity, from real data |
 | `/tasks` | Cross-chain task list (placeholder) |
 | `/documents` | Cross-chain document list (placeholder) |
 | `/settings` | Account & business workspace settings (placeholder) |
@@ -121,11 +127,16 @@ Phase 2–3 per `docs/ROADMAP.md`).
 
 ## What's intentionally not built yet
 
-- Supabase project connection, auth, and RLS policies
-- Any real data model (Chain, Milestone, Task, etc. — see
-  `docs/ARCHITECTURE.md` for the planned entities)
-- Chain creation, invites, guest access
-- Organizations / business workspace linking
+- Invitation *acceptance* flow (invitations are created at chain creation,
+  but there's no accept-invite page yet — see `docs/DECISIONS.md`)
+- Proxy-mode participants with no email (requires an admin-level operation
+  to create an identity without login credentials — deliberately deferred)
+- Organisation/business account creation and onboarding (memberships and
+  organisations currently only exist via seed data or direct DB access)
+- Milestones, tasks, notes, and documents UI (schema exists; not wired to
+  the client yet)
+- Chain creation is not atomic yet — see the note in
+  `src/server/services/chains.ts` on why, and when that gets revisited
 - Billing
 
 These follow the phased order in `docs/ROADMAP.md`.

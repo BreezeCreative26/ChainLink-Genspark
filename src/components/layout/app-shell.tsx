@@ -16,7 +16,13 @@ import { cn } from "@/lib/utils";
  * into (chain) and (business) route groups with their own shells rather than
  * branching this component internally.
  */
-export function AppShell({ children }: { children: React.ReactNode }) {
+export function AppShell({
+  children,
+  profile,
+}: {
+  children: React.ReactNode;
+  profile: { full_name: string | null; email: string } | null;
+}) {
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
 
   return (
@@ -40,7 +46,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       )}
 
       <div className="flex min-w-0 flex-1 flex-col">
-        <Topbar onMenuClick={() => setMobileNavOpen(true)} />
+        <Topbar onMenuClick={() => setMobileNavOpen(true)} profile={profile} />
         <main className="flex-1 overflow-y-auto p-6">{children}</main>
       </div>
     </div>
