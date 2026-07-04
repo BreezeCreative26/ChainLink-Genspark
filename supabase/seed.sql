@@ -146,6 +146,11 @@ insert into notes (chain_id, body, visibility, organisation_id, created_by_parti
 insert into activity_logs (chain_id, actor_participant_id, on_behalf_of_participant_id, action, entity_type, entity_id, source) values
   ('c1111111-1111-1111-1111-111111111111', 'e1111111-1111-1111-1111-111111111111', 'e2222222-2222-2222-2222-222222222222', 'milestone.completed', 'milestone', (select id from milestones where title = 'Offer accepted'), 'proxy');
 
+-- ── A pending invitation, for exercising the "pending invites" UI ────────
+
+insert into invitations (chain_id, email, role, invited_by_participant_id) values
+  ('c1111111-1111-1111-1111-111111111111', 'new.broker@progressionpartners.example', 'broker', 'e1111111-1111-1111-1111-111111111111');
+
 -- ── A notification for the guest buyer ────────────────────────────────────
 
 insert into notifications (profile_id, chain_id, title, body, link_path) values

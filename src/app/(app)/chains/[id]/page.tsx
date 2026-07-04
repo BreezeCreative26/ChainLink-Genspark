@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { createClient } from "@/lib/supabase/server";
 import { getChainDetail } from "@/server/services/chains";
+import { InvitationsPanel } from "@/app/(app)/chains/[id]/invitations-panel";
 
 const ROLE_LABELS: Record<string, string> = {
   seller: "Seller",
@@ -24,6 +25,10 @@ const ACCESS_MODE_LABELS: Record<string, string> = {
 
 const ACTION_LABELS: Record<string, string> = {
   "chain.created": "Chain created",
+  "invitation.sent": "Invitation sent",
+  "invitation.accepted": "Invitation accepted",
+  "invitation.linked": "Invitation accepted and linked to a firm",
+  "invitation.declined": "Invitation declined",
 };
 
 export default async function ChainDetailPage({
@@ -40,11 +45,16 @@ export default async function ChainDetailPage({
     notFound();
   }
 
-  const { chain, activity } = detail;
+  const { chain, activity, invitations } = detail;
   if (!chain) notFound();
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
 
   const property = chain.properties?.[0];
   const participants = chain.chain_participants ?? [];
+  const myParticipant = participants.find((p) => p.profile_id === user?.id);
 
   return (
     <div>
@@ -94,31 +104,46 @@ export default async function ChainDetailPage({
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Participants</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {participants.length === 0 ? (
-              <div className="flex h-40 items-center justify-center rounded-md border border-dashed border-border text-sm text-muted-foreground">
-                No participants yet.
-              </div>
-            ) : (
-              <ul className="space-y-3">
-                {participants.map((p) => (
-                  <li key={p.id} className="flex items-center justify-between">
-                    <span className="text-sm text-foreground">
-                      {ROLE_LABELS[p.role] ?? p.role}
-                    </span>
-                    <Badge variant="outline" className="text-[10px]">
-                      {ACCESS_MODE_LABELS[p.access_mode] ?? p.access_mode}
-                    </Badge>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </CardContent>
-        </Card>
+        <div className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>Participants</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {participants.length === 0 ? (
+                <div className="flex h-40 items-center justify-center rounded-md border border-dashed border-border text-sm text-muted-foreground">
+                  No participants yet.
+                </div>
+              ) : (
+                <ul className="space-y-3">
+                  {participants.map((p) => (
+                    <li key={p.id} className="flex items-center justify-between">
+                      <span className="text-sm text-foreground">
+                        {ROLE_LABELS[p.role] ?? p.role}
+                      </span>
+                      <Badge variant="outline" className="text-[10px]">
+                        {ACCESS_MODE_LABELS[p.access_mode] ?? p.access_mode}
+                      </Badge>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Invitations</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <InvitationsPanel
+                chainId={chain.id}
+                myParticipantId={myParticipant?.id ?? null}
+                invitations={invitations}
+              />
+            </CardContent>
+          </Card>
+        </div>
       </div>
     </div>
   );

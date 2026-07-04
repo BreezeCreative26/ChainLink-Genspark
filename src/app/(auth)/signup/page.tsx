@@ -9,27 +9,28 @@ import {
   CardContent,
   CardFooter,
 } from "@/components/ui/card";
-import { LoginForm } from "@/app/(auth)/login/login-form";
+import { SignupForm } from "@/app/(auth)/signup/signup-form";
 
-export default function LoginPage() {
+export default function SignupPage() {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Log in to ChainLink</CardTitle>
+        <CardTitle>Create your ChainLink account</CardTitle>
         <CardDescription>
-          Access your chains and, if connected, your firm&apos;s dashboard.
+          Free for buyers, sellers, and anyone joining a single chain as a
+          guest.
         </CardDescription>
       </CardHeader>
       <CardContent>
         <Suspense>
-          <LoginForm />
+          <SignupForm />
         </Suspense>
       </CardContent>
       <CardFooter className="justify-center">
         <p className="text-sm text-muted-foreground">
-          Invited to a chain?{" "}
-          <Link href="/" className="font-medium text-primary hover:underline">
-            Use your invite link instead
+          Already have an account?{" "}
+          <Link href="/login" className="font-medium text-primary hover:underline">
+            Log in
           </Link>
         </p>
       </CardFooter>

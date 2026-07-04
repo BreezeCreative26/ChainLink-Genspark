@@ -83,6 +83,51 @@ it should always reflect the current reasoning, not just the current state.
   role checks (e.g. only conveyancers can complete legal milestones) are
   deferred to the Phase 3 hardening pass per `docs/ROADMAP.md`.
 
+### Invitation system (added when invitations/matching were implemented)
+
+- **The six invitation states (invited/viewed/accepted/linked/declined/inactive)
+  live on `invitations.status`, not `chain_participants.status`.** The
+  original schema deliberately keeps `chain_participants` rows from
+  existing until someone has actually joined (see `docs/data-model.md`) —
+  a person who's only been invited, viewed the link, or declined was never
+  a participant, so those states can't sensibly live on the participant
+  table. `chain_participants.status` stays `active`/`removed`, describing
+  an already-joined participant's standing on the chain, which is a
+  different question. `accepted` and `linked` are both terminal
+  invitation states that *result in* a participant row — distinguished so
+  the UI and audit trail can tell "joined solo" from "joined and linked to
+  a firm" apart, even after the fact.
+- **Linking to a firm workspace always requires explicit confirmation —
+  never automatic, even on a confirmed account/email match.** A correct
+  email match only proves identity, not that the person wants this
+  specific chain visible to their whole firm (they may be handling it
+  personally, or the match may span a firm they no longer want associated
+  with their account). The invite response screen always asks.
+- **Account matching is scoped to the *authenticated session's* email
+  only, compared case-insensitively against the invitation's email.**
+  Never a value read from a form or query parameter — those are trivially
+  spoofable by whoever currently holds a session. A mismatch is refused
+  outright with no partial access, and the UI explains why in plain terms
+  rather than describing the check's internals.
+- **Pre-login invitation viewing uses a narrow service-role lookup;** every
+  mutation (accept/decline/link) happens only after login, through the
+  normal RLS-scoped client. The service-role lookup returns display fields
+  only (chain ref, property address, role, inviter name) — never anything
+  that would let a visitor infer data about a chain they haven't joined.
+- **A restrictive RLS policy backs the application-layer link check.**
+  `access_mode = 'connected'` now requires an active membership in the
+  named organisation at the database level (`0011_connected_participant_safeguard.sql`),
+  independent of the service-layer check in `invitations.ts` — closing the
+  gap where a direct API call could otherwise set `connected` +
+  `organisation_id` without ever passing through the matching logic.
+- **Guest fallback still requires a lightweight account (email + password),
+  not a fully anonymous path.** This was already implied by "one identity
+  type" in `docs/ARCHITECTURE.md`, but is now concrete: there is no
+  passwordless/anonymous participation mode. Note: whether a newly
+  signed-up account can act immediately or must confirm its email first
+  depends on the Supabase project's auth settings, not on ChainLink's own
+  code — see the caveat in `src/app/(auth)/signup/signup-form.tsx`.
+
 ## Open Questions (Unresolved)
 
 - **Historical visibility on connection**: when a professional's chain

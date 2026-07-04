@@ -13,6 +13,32 @@ export type AccessMode =
  */
 export type ChainCreatorRole = "sellers_agent" | "buyer" | "seller";
 
+export type InvitationStatus =
+  Database["public"]["Tables"]["invitations"]["Row"]["status"];
+
+/**
+ * The decision an invitee makes when a matching firm membership is found.
+ * 'link' connects the chain into their firm's business workspace
+ * (access_mode = 'connected'); 'guest' keeps their access purely personal
+ * even though a firm match exists. Never inferred automatically — see
+ * docs/DECISIONS.md ("Confirmation required for professional linking").
+ */
+export type AcceptDecision = "link" | "guest";
+
+export interface InvitationForDisplay {
+  chainRef: string;
+  propertyAddress: string | null;
+  role: ChainParticipantRole;
+  status: InvitationStatus;
+  expiresAt: string;
+  inviterName: string | null;
+}
+
+export interface AccountMatch {
+  organisationId: string;
+  organisationName: string;
+}
+
 export interface InitialInvitationInput {
   email: string;
   role: ChainParticipantRole;

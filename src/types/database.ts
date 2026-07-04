@@ -146,10 +146,13 @@ export interface Database {
           role: Database["public"]["Tables"]["chain_participants"]["Row"]["role"];
           invited_by_participant_id: string;
           token: string;
-          status: "pending" | "accepted" | "expired" | "revoked";
+          status: "invited" | "viewed" | "accepted" | "linked" | "declined" | "inactive";
           expires_at: string;
           accepted_at: string | null;
+          declined_at: string | null;
+          viewed_at: string | null;
           matched_profile_id: string | null;
+          resulting_participant_id: string | null;
           created_at: string;
         };
         Insert: Partial<Database["public"]["Tables"]["invitations"]["Row"]> & {
@@ -182,6 +185,23 @@ export interface Database {
           entity_id: string;
         };
         Update: Partial<Database["public"]["Tables"]["activity_logs"]["Row"]>;
+      };
+      notifications: {
+        Row: {
+          id: string;
+          profile_id: string;
+          chain_id: string | null;
+          title: string;
+          body: string | null;
+          link_path: string | null;
+          read_at: string | null;
+          created_at: string;
+        };
+        Insert: Partial<Database["public"]["Tables"]["notifications"]["Row"]> & {
+          profile_id: string;
+          title: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["notifications"]["Row"]>;
       };
     };
   };

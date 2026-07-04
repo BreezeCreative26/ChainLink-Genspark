@@ -48,7 +48,12 @@ reasoning, this file for the specifics.
   for connected participants, `organisation_id` live — this is the single
   most important table in the schema (see "Access model" below).
 - **`invitations`** — pre-acceptance state for a pending participant.
-  Becomes a `chain_participants` row only on acceptance.
+  Becomes a `chain_participants` row only on acceptance. Status lifecycle:
+  `invited` → `viewed` → `accepted` (guest/proxy-side outcome) or `linked`
+  (matched into an existing firm workspace); `declined` and `inactive`
+  (revoked/expired) are also terminal. See `docs/DECISIONS.md`
+  ("Invitation system") for why this six-state lifecycle lives here and
+  not on `chain_participants`.
 
 ### Content tables
 

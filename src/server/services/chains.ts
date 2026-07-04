@@ -3,6 +3,8 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/types/database";
 import type { AccessMode, ChainCreatorRole, CreateChainInput } from "@/types/chain";
 import * as chainsRepo from "@/server/repositories/chains.repository";
+import * as invitationsRepo from "@/server/repositories/invitations.repository";
+import { sendInvitation } from "@/server/services/invitations";
 
 type TypedClient = SupabaseClient<Database>;
 
@@ -91,16 +93,6 @@ export async function createChain(supabase: TypedClient, input: CreateChainInput
     buyer_participant_id: input.creatorRole === "buyer" ? participant.id : null,
   });
 
-  for (const invitation of input.initialInvitations) {
-    if (!invitation.email) continue;
-    await chainsRepo.insertInvitation(supabase, {
-      chain_id: chain.id,
-      email: invitation.email,
-      role: invitation.role,
-      invited_by_participant_id: participant.id,
-    });
-  }
-
   await chainsRepo.insertActivityLog(supabase, {
     chain_id: chain.id,
     actor_participant_id: participant.id,
@@ -110,6 +102,16 @@ export async function createChain(supabase: TypedClient, input: CreateChainInput
     source: "manual",
     visibility: "shared",
   });
+
+  for (const invitation of input.initialInvitations) {
+    if (!invitation.email) continue;
+    await sendInvitation(supabase, {
+      chainId: chain.id,
+      email: invitation.email,
+      role: invitation.role,
+      invitedByParticipantId: participant.id,
+    });
+  }
 
   return chain;
 }
@@ -142,10 +144,11 @@ export async function listChainsForCurrentUser(supabase: TypedClient) {
 }
 
 export async function getChainDetail(supabase: TypedClient, chainId: string) {
-  const [chain, activity] = await Promise.all([
+  const [chain, activity, invitations] = await Promise.all([
     chainsRepo.getChainByIdForProfile(supabase, chainId),
     chainsRepo.listActivityForChain(supabase, chainId),
+    invitationsRepo.listInvitationsForChain(supabase, chainId),
   ]);
 
-  return { chain, activity };
+  return { chain, activity, invitations };
 }

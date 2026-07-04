@@ -61,11 +61,13 @@ seeded demo account: `jordan.blake@blakeco.example` / `password123` (see
 | Route | Purpose |
 |---|---|
 | `/` | Public marketing homepage |
-| `/login` | Real Supabase Auth login |
+| `/login` | Real Supabase Auth login (supports `?redirect=`) |
+| `/signup` | Account creation for guest fallback (supports `?redirect=`) |
+| `/invite/[token]` | Invitation landing page: view, then accept/link/decline |
 | `/dashboard` | Business workspace dashboard (placeholder data — Phase 3) |
 | `/chains` | Your chains, from real data |
 | `/chains/new` | Chain creation form |
-| `/chains/[id]` | Chain workspace: participants + activity, from real data |
+| `/chains/[id]` | Chain workspace: participants, invitations, activity |
 | `/tasks` | Cross-chain task list (placeholder) |
 | `/documents` | Cross-chain document list (placeholder) |
 | `/settings` | Account & business workspace settings (placeholder) |
@@ -127,8 +129,6 @@ Phase 2–3 per `docs/ROADMAP.md`).
 
 ## What's intentionally not built yet
 
-- Invitation *acceptance* flow (invitations are created at chain creation,
-  but there's no accept-invite page yet — see `docs/DECISIONS.md`)
 - Proxy-mode participants with no email (requires an admin-level operation
   to create an identity without login credentials — deliberately deferred)
 - Organisation/business account creation and onboarding (memberships and
@@ -137,6 +137,7 @@ Phase 2–3 per `docs/ROADMAP.md`).
   the client yet)
 - Chain creation is not atomic yet — see the note in
   `src/server/services/chains.ts` on why, and when that gets revisited
+- Resending an expired/revoked invitation (currently: send a new one)
 - Billing
 
 These follow the phased order in `docs/ROADMAP.md`.
