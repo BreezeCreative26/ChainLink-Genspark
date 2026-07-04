@@ -53,28 +53,45 @@ it should always reflect the current reasoning, not just the current state.
   (schema shape, RLS design, API shape, UI conditionals) — getting it wrong
   first would likely require rebuilding the permissions layer.
 
+### Schema (added when the MVP schema was implemented — see `docs/data-model.md`)
+
+- **Chain topology is a tree, not a strict linear list.** `chain_nodes.depends_on_node_id`
+  lets one transaction depend on another completing first, covering the
+  common onward-purchase case. A full multi-parent DAG was deliberately not
+  built — no current requirement needs it, and the column can be promoted to
+  an edges table later without breaking anything. Resolves the "Chain
+  topology" open question below.
+- **Multiple firms can be connected to the same chain simultaneously.**
+  `organisation_id` lives on `chain_participants`, not on `chains`, so two
+  firms' `connected` participants coexist naturally, and internal-visibility
+  rows are scoped per-organisation. Resolves "Multiple connected firms on
+  one chain" below.
+- **Guest-to-connected transition needs no separate claim table.** Guests and
+  professionals share one `profiles` identity; existing `chain_participants`
+  rows are found by `profile_id` and offered for linking when a guest joins
+  a firm. Resolves "Guest-to-connected-professional transition mechanics"
+  below.
+- **Branches are built now, but optional.** `branches` exists with a
+  nullable FK from `memberships`, so a firm can stay flat. Resolves "Branch
+  structure necessity for v1" below.
+- **Enums are `text` + `check` constraints, not native Postgres enum types.**
+  Rationale: adding a new allowed value to a check constraint is a simple
+  migration; altering a native enum type is more disruptive, especially once
+  it's referenced by dependent objects.
+- **RLS policies for MVP are a baseline, not the final security posture.**
+  Core chain/organisation/visibility scoping is enforced now; finer-grained
+  role checks (e.g. only conveyancers can complete legal milestones) are
+  deferred to the Phase 3 hardening pass per `docs/ROADMAP.md`.
+
 ## Open Questions (Unresolved)
 
-- **Chain topology**: are chains strictly linear, or do we need to support
-  branching from the start (e.g. a buyer's onward purchase, multiple
-  properties feeding into one chain)? This affects the `PropertyLink` data
-  model directly and should be resolved before schema design.
-- **Multiple connected firms on one chain**: can a chain have two subscribed
-  firms simultaneously (e.g. buyer's agent's firm and seller's agent's firm
-  both paying customers), and if so, how do their business dashboards each
-  see "their side" without seeing the other firm's internal data?
 - **Historical visibility on connection**: when a professional's chain
   becomes "connected" into their firm's business workspace, does the firm see
   the chain's full history from creation, or only activity from the point of
-  connection onward?
-- **Branch structure necessity for v1**: is branch-level sub-tenancy needed
-  from Phase 2, or can organizations be flat until a firm customer actually
-  requires branch separation?
+  connection onward? (Schema supports either — this is a query/business-logic
+  decision, not a schema one — but should be settled before the dashboard is
+  built.)
 - **Risk indicator computation**: are risk indicators manually flagged only
   in early phases, or is there an early case for simple rule-based automatic
-  flagging (e.g. "no activity in 14 days")? Affects Phase 3 scope.
-- **Guest-to-connected-professional transition mechanics**: when a guest
-  professional later creates a business account, exactly how are their prior
-  guest chains surfaced and offered for linking — automatic detection by
-  email match, or manual claim flow? Needs a decision before Phase 2 invite
-  logic is finalized.
+  flagging (e.g. "no activity in 14 days")? Not part of the MVP schema (no
+  `risk_indicators` table yet) — affects Phase 3 scope.

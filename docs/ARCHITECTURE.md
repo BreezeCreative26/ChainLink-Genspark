@@ -93,16 +93,21 @@ questions). Principles agreed so far:
 
 ## Data Model Overview
 
-Core entities (detailed schema to be defined in `docs/data-model.md` when we
-reach implementation):
+**Full schema, decisions, and rationale: see `docs/data-model.md`.** Summary:
 
-- User, Organization, Branch, OrganizationMember
-- Chain, ChainParticipant, PropertyLink
-- Milestone, Task, Note, Document, ActivityEvent
-- Invite, RiskIndicator
+- `organisations`, `branches`, `profiles`, `memberships` — business-workspace
+  layer
+- `chains`, `properties`, `chain_nodes`, `chain_participants`, `invitations`
+  — chain-workspace layer
+- `milestone_templates`, `milestones`, `tasks`, `notes`, `documents`,
+  `activity_logs`, `notifications` — content, all carrying `visibility`
+  (`shared`/`internal`) and, where relevant, `source` attribution for
+  proxy-mode updates
 
-The relationship between Organization and Chain is indirect, via
-OrganizationMember → ChainParticipant, reflecting the tenancy model above.
+The relationship between Organisation and Chain is indirect, via
+`chain_participants.organisation_id` (set only when a participant's
+`access_mode = 'connected'`), reflecting the tenancy model above — a chain
+is never owned by an organisation.
 
 ## Deployment Assumptions
 
