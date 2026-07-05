@@ -30,3 +30,34 @@ export async function addComment(
     visibility: "shared",
   });
 }
+
+export async function listInternalNotes(
+  supabase: TypedClient,
+  chainId: string,
+  organisationId: string
+) {
+  return notesRepo.listInternalNotesForChain(supabase, chainId, organisationId);
+}
+
+export async function addInternalNote(
+  supabase: TypedClient,
+  params: { chainId: string; body: string; organisationId: string; myParticipantId: string }
+) {
+  const note = await notesRepo.insertInternalNote(supabase, {
+    chainId: params.chainId,
+    body: params.body,
+    organisationId: params.organisationId,
+    createdByParticipantId: params.myParticipantId,
+  });
+
+  await chainsRepo.insertActivityLog(supabase, {
+    chain_id: params.chainId,
+    actor_participant_id: params.myParticipantId,
+    action: "note.added",
+    entity_type: "note",
+    entity_id: note.id,
+    source: "manual",
+    visibility: "internal",
+    organisation_id: params.organisationId,
+  });
+}

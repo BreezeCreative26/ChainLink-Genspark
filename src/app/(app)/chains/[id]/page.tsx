@@ -8,11 +8,16 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { createClient } from "@/lib/supabase/server";
 import { getChainDetail } from "@/server/services/chains";
+import { listInternalNotes } from "@/server/services/notes";
 import { getAllowedDocumentCategories } from "@/lib/document-access";
 import { InvitationsPanel } from "@/app/(app)/chains/[id]/invitations-panel";
 import { MilestonesPanel } from "@/app/(app)/chains/[id]/milestones-panel";
 import { DocumentsPanel } from "@/app/(app)/chains/[id]/documents-panel";
 import { CommentsPanel } from "@/app/(app)/chains/[id]/comments-panel";
+import { TasksPanel } from "@/app/(app)/chains/[id]/tasks-panel";
+import { InternalNotesPanel } from "@/app/(app)/chains/[id]/internal-notes-panel";
+import { TopologyPanel } from "@/app/(app)/chains/[id]/topology-panel";
+import { AddProxyParticipantForm } from "@/app/(app)/chains/[id]/add-proxy-participant-form";
 
 const ROLE_LABELS: Record<string, string> = {
   seller: "Seller",
@@ -37,9 +42,16 @@ const ACTION_LABELS: Record<string, string> = {
   "invitation.linked": "Invitation accepted and linked to a firm",
   "invitation.declined": "Invitation declined",
   "milestone.confirmed": "Milestone confirmed",
+  "milestone.created": "Milestone added",
+  "milestone.status_changed": "Milestone updated",
   "document.uploaded": "Document uploaded",
   "document.viewed": "Document opened",
   "comment.added": "Comment added",
+  "note.added": "Internal note added",
+  "task.created": "Task added",
+  "task.status_changed": "Task updated",
+  "participant.added_proxy": "Proxy participant added",
+  "chain_node.added": "Linked transaction added",
 };
 
 export default async function ChainDetailPage({
@@ -56,7 +68,7 @@ export default async function ChainDetailPage({
     notFound();
   }
 
-  const { chain, activity, invitations, milestones, documents, comments } = detail;
+  const { chain, activity, invitations, milestones, documents, comments, tasks, chainNodes } = detail;
   if (!chain) notFound();
 
   const {
@@ -67,25 +79,52 @@ export default async function ChainDetailPage({
   const participants = chain.chain_participants ?? [];
   const myParticipant = participants.find((p) => p.profile_id === user?.id);
   const isGuest = myParticipant?.access_mode === "guest";
+  const myOrganisationId = myParticipant?.organisation_id ?? null;
   const allowedCategories = getAllowedDocumentCategories(
     myParticipant?.access_mode ?? null,
     (myParticipant?.role as Parameters<typeof getAllowedDocumentCategories>[1]) ?? null
   );
 
-  const commentRows = comments.map((c) => {
-    const participant = Array.isArray(c.chain_participants)
-      ? c.chain_participants[0]
-      : c.chain_participants;
-    const profile = participant
-      ? Array.isArray(participant.profiles)
-        ? participant.profiles[0]
-        : participant.profiles
+  const internalNotes = myOrganisationId
+    ? await listInternalNotes(supabase, chain.id, myOrganisationId)
+    : [];
+
+  function resolveAuthorName(row: {
+    chain_participants: unknown;
+  }): string {
+    const participant = Array.isArray(row.chain_participants)
+      ? row.chain_participants[0]
+      : row.chain_participants;
+    const p = participant as { profiles?: unknown } | null;
+    const profile = p?.profiles
+      ? Array.isArray(p.profiles)
+        ? (p.profiles as { full_name: string | null; email: string }[])[0]
+        : (p.profiles as { full_name: string | null; email: string })
       : null;
+    return profile?.full_name ?? profile?.email ?? "Someone";
+  }
+
+  const commentRows = comments.map((c) => ({
+    id: c.id,
+    body: c.body,
+    created_at: c.created_at,
+    authorName: resolveAuthorName(c),
+  }));
+
+  const internalNoteRows = internalNotes.map((n) => ({
+    id: n.id,
+    body: n.body,
+    created_at: n.created_at,
+    authorName: resolveAuthorName(n),
+  }));
+
+  const nodeRows = chainNodes.map((n) => {
+    const prop = Array.isArray(n.properties) ? n.properties[0] : n.properties;
     return {
-      id: c.id,
-      body: c.body,
-      created_at: c.created_at,
-      authorName: profile?.full_name ?? profile?.email ?? "Someone",
+      id: n.id,
+      sequenceIndex: n.sequence_index,
+      dependsOnNodeId: n.depends_on_node_id,
+      address: [prop?.address_line1, prop?.city].filter(Boolean).join(", ") || "Untitled property",
     };
   });
 
@@ -121,11 +160,43 @@ export default async function ChainDetailPage({
               <MilestonesPanel
                 chainId={chain.id}
                 myParticipantId={myParticipant?.id ?? null}
+                myOrganisationId={myOrganisationId}
                 isGuest={isGuest}
                 milestones={milestones}
               />
             </CardContent>
           </Card>
+
+          {!isGuest && (
+            <Card>
+              <CardHeader>
+                <CardTitle>Linked transactions</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <TopologyPanel
+                  chainId={chain.id}
+                  myParticipantId={myParticipant?.id ?? null}
+                  nodes={nodeRows}
+                />
+              </CardContent>
+            </Card>
+          )}
+
+          {!isGuest && (
+            <Card>
+              <CardHeader>
+                <CardTitle>Tasks</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <TasksPanel
+                  chainId={chain.id}
+                  myParticipantId={myParticipant?.id ?? null}
+                  myOrganisationId={myOrganisationId}
+                  tasks={tasks}
+                />
+              </CardContent>
+            </Card>
+          )}
 
           <Card>
             <CardHeader>
@@ -140,6 +211,22 @@ export default async function ChainDetailPage({
             </CardContent>
           </Card>
 
+          {!isGuest && myOrganisationId && (
+            <Card>
+              <CardHeader>
+                <CardTitle>Internal notes</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <InternalNotesPanel
+                  chainId={chain.id}
+                  organisationId={myOrganisationId}
+                  myParticipantId={myParticipant?.id ?? null}
+                  notes={internalNoteRows}
+                />
+              </CardContent>
+            </Card>
+          )}
+
           <Card>
             <CardHeader>
               <CardTitle>Documents</CardTitle>
@@ -149,7 +236,7 @@ export default async function ChainDetailPage({
                 chainId={chain.id}
                 myParticipantId={myParticipant?.id ?? null}
                 myAccessMode={myParticipant?.access_mode ?? null}
-                myOrganisationId={myParticipant?.organisation_id ?? null}
+                myOrganisationId={myOrganisationId}
                 documents={documents}
                 allowedCategories={allowedCategories}
               />
@@ -202,7 +289,7 @@ export default async function ChainDetailPage({
             <CardHeader>
               <CardTitle>{isGuest ? "Who's involved" : "Participants"}</CardTitle>
             </CardHeader>
-            <CardContent>
+            <CardContent className="space-y-3">
               {participants.length === 0 ? (
                 <div className="flex h-32 items-center justify-center rounded-md border border-dashed border-border text-sm text-muted-foreground">
                   No participants yet.
@@ -233,6 +320,13 @@ export default async function ChainDetailPage({
                     );
                   })}
                 </ul>
+              )}
+
+              {!isGuest && myParticipant && (
+                <AddProxyParticipantForm
+                  chainId={chain.id}
+                  managerParticipantId={myParticipant.id}
+                />
               )}
             </CardContent>
           </Card>

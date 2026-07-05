@@ -1,6 +1,7 @@
 "use client";
 
-import { Menu, LogOut } from "lucide-react";
+import Link from "next/link";
+import { Menu, LogOut, Bell } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -17,9 +18,11 @@ function initials(name: string | null, email: string) {
 export function Topbar({
   onMenuClick,
   profile,
+  unreadCount,
 }: {
   onMenuClick: () => void;
   profile: { full_name: string | null; email: string } | null;
+  unreadCount: number;
 }) {
   return (
     <header className="flex h-16 shrink-0 items-center justify-between border-b border-border bg-card px-4 md:px-6">
@@ -36,6 +39,15 @@ export function Topbar({
       <div className="hidden md:block" />
 
       <div className="flex items-center gap-3">
+        <Button asChild variant="ghost" size="icon" aria-label="Notifications" className="relative">
+          <Link href="/notifications">
+            <Bell className="h-4 w-4" />
+            {unreadCount > 0 && (
+              <span className="absolute right-1.5 top-1.5 flex h-2 w-2 rounded-full bg-destructive" />
+            )}
+          </Link>
+        </Button>
+
         {profile && (
           <div className="hidden text-right sm:block">
             <p className="text-sm font-medium leading-none text-foreground">

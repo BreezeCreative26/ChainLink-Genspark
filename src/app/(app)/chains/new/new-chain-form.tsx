@@ -205,7 +205,7 @@ export function NewChainForm() {
             <Lock className="h-3.5 w-3.5 shrink-0" />
             Adding someone without an email (proxy mode, e.g. tracking
             updates on behalf of a party who won&apos;t use ChainLink
-            directly) is coming in a future update.
+            directly) can be done from the chain page after it&apos;s created.
           </div>
         </CardContent>
       </Card>

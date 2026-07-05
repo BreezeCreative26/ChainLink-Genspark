@@ -67,8 +67,11 @@ seeded demo account: `jordan.blake@blakeco.example` / `password123` (see
 | `/dashboard` | Business dashboard: workload, risk, invites, activity — firm-wide or solo caseload |
 | `/chains` | Your chains, from real data |
 | `/chains/new` | Chain creation form |
-| `/chains/[id]` | Chain workspace: participants, invitations, milestones, documents, comments, activity |
+| `/chains/[id]` | Chain workspace: participants, invitations, milestones, tasks, internal notes, comments, documents, activity, linked transactions |
 | `/chains/[id]/audit` | Full audit log (professional-only) |
+| `/notifications` | Your notifications, with mark-as-read |
+| `/settings/organisation/new` | Create your firm (becomes its owner) |
+| `/settings/organisation` | Team management (add/remove teammates by email) |
 | `/tasks` | Cross-chain task list (placeholder) |
 | `/documents` | Cross-chain document list (placeholder) |
 | `/settings` | Account, firm summary, and a link to billing |
@@ -131,13 +134,13 @@ Phase 2–3 per `docs/ROADMAP.md`).
 
 ## What's intentionally not built yet
 
-- Proxy-mode participants with no email (requires an admin-level operation
-  to create an identity without login credentials — deliberately deferred)
-- Organisation/business account creation and onboarding (memberships and
-  organisations currently only exist via seed data or direct DB access)
+- Proxy-mode participant creation now works from the chain detail page —
+  what's still missing is inviting a **teammate into a firm** who doesn't
+  already have a ChainLink account (adding one who does works today)
 - A firm switcher for people belonging to more than one organisation
   (dashboard and billing both use the first active membership — see
   `docs/DECISIONS.md`)
+- Organisation editing (renaming, changing type) — only creation is built
 - Real payment processing — Stripe isn't integrated yet; `/settings/billing`
   and `organisations.plan`/`subscription_status`/`stripe_*` columns are
   scaffolding for it, and the webhook route
@@ -145,15 +148,14 @@ Phase 2–3 per `docs/ROADMAP.md`).
 - Hard usage-limit enforcement — usage vs. plan limits is shown, not
   blocked, on purpose (see `docs/DECISIONS.md`, "Commercial / billing
   scaffolding")
-- Tasks UI, and a dedicated internal-notes UI for firms (schema/RLS exist
-  for both; only the guest-facing shared comment feed is built so far)
-- Full milestone management for professionals (creating/editing milestones,
-  applying a template to a new chain) — guests can only confirm
-  pre-flagged ones; professionals currently see the same read-only list
+- **The build has never actually been run** (`npm install && npm run
+  build`) — no network access exists in this environment. Run it before
+  trusting anything further; see `docs/DECISIONS.md` ("Audit
+  remediation").
+- No automated tests exist
 - Chain creation is not atomic yet — see the note in
   `src/server/services/chains.ts` on why, and when that gets revisited
 - Resending an expired/revoked invitation (currently: send a new one)
-- Billing
 
 These follow the phased order in `docs/ROADMAP.md`.
 

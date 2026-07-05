@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { CreditCard } from "lucide-react";
+import { CreditCard, Users, Building2 } from "lucide-react";
 
 import { PageHeader } from "@/components/layout/page-header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -68,17 +68,24 @@ export default async function SettingsPage() {
                       {PLANS[org.plan as keyof typeof PLANS]?.name ?? org.plan} plan
                     </p>
                   </div>
-                  {isAdmin ? (
+                  <div className="flex gap-2">
                     <Button asChild variant="outline" size="sm">
-                      <Link href="/settings/billing">
-                        <CreditCard className="h-4 w-4" /> Manage billing
+                      <Link href="/settings/organisation">
+                        <Users className="h-4 w-4" /> Team
                       </Link>
                     </Button>
-                  ) : (
-                    <Button asChild variant="ghost" size="sm">
-                      <Link href="/settings/billing">View plan</Link>
-                    </Button>
-                  )}
+                    {isAdmin ? (
+                      <Button asChild variant="outline" size="sm">
+                        <Link href="/settings/billing">
+                          <CreditCard className="h-4 w-4" /> Billing
+                        </Link>
+                      </Button>
+                    ) : (
+                      <Button asChild variant="ghost" size="sm">
+                        <Link href="/settings/billing">View plan</Link>
+                      </Button>
+                    )}
+                  </div>
                 </div>
                 {!isAdmin && (
                   <p className="text-xs text-muted-foreground">
@@ -87,10 +94,16 @@ export default async function SettingsPage() {
                 )}
               </>
             ) : (
-              <p className="text-sm text-muted-foreground">
-                You&apos;re not connected to a firm. Business workspace and
-                billing settings appear here once you join or create one.
-              </p>
+              <>
+                <p className="text-sm text-muted-foreground">
+                  You&apos;re not connected to a firm yet.
+                </p>
+                <Button asChild size="sm">
+                  <Link href="/settings/organisation/new">
+                    <Building2 className="h-4 w-4" /> Create your firm
+                  </Link>
+                </Button>
+              </>
             )}
           </CardContent>
         </Card>

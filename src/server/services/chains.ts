@@ -7,9 +7,10 @@ import type { AccessMode, ChainCreatorRole, CreateChainInput } from "@/types/cha
 import * as chainsRepo from "@/server/repositories/chains.repository";
 import * as invitationsRepo from "@/server/repositories/invitations.repository";
 import { sendInvitation } from "@/server/services/invitations";
-import { listMilestones } from "@/server/services/milestones";
+import { listMilestones, applyTemplatesToNewChain } from "@/server/services/milestones";
 import { listDocuments } from "@/server/services/documents";
 import { listComments } from "@/server/services/notes";
+import { listTasks } from "@/server/services/tasks";
 
 type TypedClient = SupabaseClient<Database>;
 
@@ -90,12 +91,22 @@ export async function createChain(supabase: TypedClient, input: CreateChainInput
   // on for this first node. Agents don't sit on either side themselves —
   // the node's seller/buyer slots are filled in once those participants
   // (or their invitations) are attached.
-  await chainsRepo.insertChainNode(supabase, {
+  const chainNode = await chainsRepo.insertChainNode(supabase, {
     chain_id: chain.id,
     property_id: property.id,
     sequence_index: 1,
     seller_participant_id: input.creatorRole === "seller" ? participant.id : null,
     buyer_participant_id: input.creatorRole === "buyer" ? participant.id : null,
+  });
+
+  // Gives the chain a real starter checklist instead of nothing — see
+  // docs/DECISIONS.md ("Hardening review") on why an empty chain was a
+  // real gap.
+  await applyTemplatesToNewChain(supabase, {
+    chainId: chain.id,
+    chainNodeId: chainNode.id,
+    organisationId,
+    creatorParticipantId: participant.id,
   });
 
   await chainsRepo.insertActivityLog(supabase, {
@@ -149,16 +160,68 @@ export async function listChainsForCurrentUser(supabase: TypedClient) {
 }
 
 export async function getChainDetail(supabase: TypedClient, chainId: string) {
-  const [chain, activity, invitations, milestones, documents, comments] = await Promise.all([
+  const [chain, activity, invitations, milestones, documents, comments, tasks, chainNodes] = await Promise.all([
     chainsRepo.getChainByIdForProfile(supabase, chainId),
     chainsRepo.listActivityForChain(supabase, chainId),
     invitationsRepo.listInvitationsForChain(supabase, chainId),
     listMilestones(supabase, chainId),
     listDocuments(supabase, chainId),
     listComments(supabase, chainId),
+    listTasks(supabase, chainId),
+    chainsRepo.listChainNodesForChain(supabase, chainId),
   ]);
 
-  return { chain, activity, invitations, milestones, documents, comments };
+  return { chain, activity, invitations, milestones, documents, comments, tasks, chainNodes };
+}
+
+/**
+ * Adds a second (or subsequent) linked transaction to an existing chain —
+ * e.g. the seller's own onward purchase. This is the UI for the tree-based
+ * topology described in docs/data-model.md ("Chain Topology"), which
+ * existed in the schema from the start but had no way to actually grow a
+ * chain past its first node until the commercial-grade audit named it a
+ * real gap.
+ */
+export async function addLinkedTransaction(
+  supabase: TypedClient,
+  params: {
+    chainId: string;
+    addressLine1: string;
+    city?: string;
+    postcode?: string;
+    dependsOnNodeId: string;
+    actorParticipantId: string;
+  }
+) {
+  if (!params.addressLine1.trim()) {
+    throw new AppError("Address is required.");
+  }
+
+  const property = await chainsRepo.insertProperty(supabase, {
+    chain_id: params.chainId,
+    address_line1: params.addressLine1.trim(),
+    city: params.city || null,
+    postcode: params.postcode || null,
+  });
+
+  const node = await chainsRepo.insertChainNode(supabase, {
+    chain_id: params.chainId,
+    property_id: property.id,
+    depends_on_node_id: params.dependsOnNodeId,
+  });
+
+  await chainsRepo.insertActivityLog(supabase, {
+    chain_id: params.chainId,
+    actor_participant_id: params.actorParticipantId,
+    action: "chain_node.added",
+    entity_type: "chain_node",
+    entity_id: node.id,
+    source: "manual",
+    visibility: "shared",
+    metadata: { address: params.addressLine1.trim() },
+  });
+
+  return node;
 }
 
 export async function currentUserHasProfessionalStanding(supabase: TypedClient) {

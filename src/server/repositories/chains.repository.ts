@@ -167,6 +167,24 @@ export async function listActivityForChain(supabase: TypedClient, chainId: strin
 }
 
 /**
+ * Every transaction (node) in this chain, with its property address, for
+ * the "linked transactions" UI — the one part of the tree-based chain
+ * topology (docs/data-model.md, "Chain Topology") that had no UI at all
+ * before the commercial-grade audit, despite being a deliberate,
+ * signature schema decision.
+ */
+export async function listChainNodesForChain(supabase: TypedClient, chainId: string) {
+  const { data, error } = await supabase
+    .from("chain_nodes")
+    .select("id, sequence_index, depends_on_node_id, properties ( address_line1, city )")
+    .eq("chain_id", chainId)
+    .order("sequence_index", { ascending: true });
+
+  if (error) throw error;
+  return data;
+}
+
+/**
  * True if the user has 'connected' or 'proxy' standing on ANY chain —
  * i.e. they are not a pure guest anywhere. Used to gate the business
  * dashboard nav item (docs: "guests must not see business dashboards").

@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { AppShell } from "@/components/layout/app-shell";
 import { currentUserHasProfessionalStanding } from "@/server/services/chains";
+import { getUnreadCountForCurrentUser } from "@/server/services/notifications";
 
 export default async function AppLayout({
   children,
@@ -18,13 +19,14 @@ export default async function AppLayout({
     redirect("/login");
   }
 
-  const [{ data: profile }, hasProfessionalStanding] = await Promise.all([
+  const [{ data: profile }, hasProfessionalStanding, unreadCount] = await Promise.all([
     supabase.from("profiles").select("full_name, email").eq("id", user.id).single(),
     currentUserHasProfessionalStanding(supabase),
+    getUnreadCountForCurrentUser(supabase),
   ]);
 
   return (
-    <AppShell profile={profile} showDashboard={hasProfessionalStanding}>
+    <AppShell profile={profile} showDashboard={hasProfessionalStanding} unreadCount={unreadCount}>
       {children}
     </AppShell>
   );

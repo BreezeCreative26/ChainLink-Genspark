@@ -20,10 +20,12 @@ export function AppShell({
   children,
   profile,
   showDashboard,
+  unreadCount,
 }: {
   children: React.ReactNode;
   profile: { full_name: string | null; email: string } | null;
   showDashboard: boolean;
+  unreadCount: number;
 }) {
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
 
@@ -49,7 +51,11 @@ export function AppShell({
       )}
 
       <div className="flex min-w-0 flex-1 flex-col">
-        <Topbar onMenuClick={() => setMobileNavOpen(true)} profile={profile} />
+        <Topbar
+          onMenuClick={() => setMobileNavOpen(true)}
+          profile={profile}
+          unreadCount={unreadCount}
+        />
         <main className="flex-1 overflow-y-auto p-6">{children}</main>
       </div>
     </div>

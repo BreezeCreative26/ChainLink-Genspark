@@ -359,6 +359,73 @@ it should always reflect the current reasoning, not just the current state.
   conflict against), so re-running the file directly — not via a full
   `supabase db reset` — silently duplicated demo data.
 
+### Audit remediation (added closing the gaps found in the commercial-grade audit)
+
+This pass deliberately worked through the audit's own "Recommended Next
+Build Order" plus the "Immediate Gaps" list, in that priority order.
+
+- **Organisation onboarding was genuinely missing — not documented as
+  missing, just absent.** Added a carefully-scoped bootstrap RLS pattern
+  (`0017_organisation_onboarding.sql`): anyone can create an inert
+  organisation shell, but claiming the founding `owner` membership only
+  works when the organisation has zero existing members. Promoting anyone
+  to `owner` later — including by an existing admin — is blocked by a
+  restrictive policy. Adding co-owners after the fact isn't supported yet;
+  this is a deliberate scope cut, not an oversight.
+- **Adding a teammate only works if they already have a ChainLink
+  account**, found by email. A full pending-organisation-invite system
+  (its own token/lifecycle, parallel to but distinct from chain
+  invitations) is real, separate scope — not built in this pass.
+- **Chain creation now applies milestone_templates**, giving every new
+  chain a real starter checklist instead of nothing. "Offer accepted" is
+  marked complete immediately, since creating a chain implies one already
+  happened.
+- **Professionals can now create milestones and set any status**, not
+  just guest-confirm pre-existing ones. This is a genuinely separate code
+  path from the guest-confirm flow — no changes were made to the guest
+  trigger's restrictions.
+- **Tasks now have a real UI** (create, status update) — the
+  `tasks_update` RLS policy that never existed was added alongside it;
+  without it, a task could be created but never marked done.
+- **Internal (firm-only) notes now have a UI**, separate from the
+  guest-visible comment feed that already existed. Same underlying table,
+  distinguished only by `visibility`, exactly as designed originally.
+- **Proxy-participant creation is now real application code**, not
+  schema-only. Uses the service-role client narrowly for the one step
+  that genuinely requires it (creating an auth identity with no
+  credentials), with a `.invalid`-TLD synthetic email (RFC 2606) so it can
+  never collide with or be mistaken for a real address. Every other part
+  of the flow — inserting the `chain_participants` row — goes through the
+  caller's own session, governed by the same RLS as everything else.
+- **The chain topology (tree-based, branching) design finally has a UI.**
+  A chain could always represent a second linked transaction in the
+  schema; there was never a way to create one through the product. Kept
+  intentionally minimal: address + which existing node it depends on,
+  no participant assignment at creation time.
+- **Notifications are no longer write-only.** A `/notifications` page and
+  a topbar bell with an unread indicator were added; no new RLS was
+  needed since `notifications_select`/`notifications_update_self` already
+  existed and had simply never been used.
+
+**Explicitly NOT done in this pass, and why:**
+- **No automated test suite.** Setting one up and writing meaningful
+  coverage is its own multi-session project, not a fix folded into a
+  larger pass — doing it hastily here would produce tests worth less than
+  no tests.
+- **Chain creation is still not wrapped in a single transaction.** The
+  same tradeoff as before; promoting it to a Postgres RPC function is a
+  real architectural change that deserves its own focused pass, not a
+  drive-by edit alongside seven other features.
+- **No organisation editing (renaming, changing type).** Only creation was
+  in scope; editing is a natural next step, not a blocker.
+- **The build has still not actually been run** (`npm install`, `next
+  build`, `tsc --noEmit`) — no network access exists in this environment
+  to do so. Every fix in this pass was verified by careful manual
+  inspection (import resolution, JSX tag balance, RLS/constraint
+  cross-checks) rather than a real compiler, which is a materially weaker
+  guarantee. This remains the single most important thing to do before
+  trusting this codebase further.
+
 ## Open Questions (Unresolved)
 
 - **Multiple simultaneous organisation memberships**: the dashboard
