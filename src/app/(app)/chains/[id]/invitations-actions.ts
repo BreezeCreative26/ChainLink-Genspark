@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 
 import { createClient } from "@/lib/supabase/server";
 import { sendInvitation, revokeInvitation } from "@/server/services/invitations";
+import { toActionError } from "@/lib/errors";
 import type { ChainParticipantRole } from "@/types/chain";
 
 export async function inviteParticipantAction(input: {
@@ -25,8 +26,7 @@ export async function inviteParticipantAction(input: {
       invitedByParticipantId: input.invitedByParticipantId,
     });
   } catch (err) {
-    console.error("inviteParticipantAction failed", err);
-    return { error: err instanceof Error ? err.message : "Could not send invitation." };
+    return { error: toActionError(err, "Could not send invitation.") };
   }
 
   revalidatePath(`/chains/${input.chainId}`);
@@ -38,8 +38,7 @@ export async function revokeInvitationAction(chainId: string, invitationId: stri
   try {
     await revokeInvitation(supabase, invitationId);
   } catch (err) {
-    console.error("revokeInvitationAction failed", err);
-    return { error: err instanceof Error ? err.message : "Could not revoke invitation." };
+    return { error: toActionError(err, "Could not revoke invitation.") };
   }
 
   revalidatePath(`/chains/${chainId}`);

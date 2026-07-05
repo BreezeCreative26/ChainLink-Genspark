@@ -1,5 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 
+import { AppError } from "@/lib/errors";
+
 import type { Database } from "@/types/database";
 import type {
   AcceptDecision,
@@ -88,7 +90,7 @@ export async function checkInvitationForCurrentUser(
   } = await supabase.auth.getUser();
 
   if (!user) {
-    throw new Error("checkInvitationForCurrentUser requires an authenticated session");
+    throw new AppError("You need to be logged in to respond to this invitation.");
   }
 
   const invitation = await invitationsRepo.getInvitationByTokenForRecipient(
@@ -154,7 +156,7 @@ export async function acceptInvitation(
   const check = await checkInvitationForCurrentUser(supabase, token);
 
   if (check.outcome !== "ready") {
-    throw new Error(
+    throw new AppError(
       check.outcome === "email_mismatch"
         ? "This invitation was sent to a different email address."
         : "This invitation is no longer available."
@@ -168,7 +170,7 @@ export async function acceptInvitation(
   const {
     data: { user },
   } = await supabase.auth.getUser();
-  if (!user) throw new Error("Not authenticated");
+  if (!user) throw new AppError("Not authenticated");
 
   const participant = await chainsRepo.insertChainParticipant(supabase, {
     chain_id: check.chainId,
@@ -218,7 +220,7 @@ export async function declineInvitation(supabase: TypedClient, token: string) {
   const check = await checkInvitationForCurrentUser(supabase, token);
 
   if (check.outcome !== "ready") {
-    throw new Error(
+    throw new AppError(
       check.outcome === "email_mismatch"
         ? "This invitation was sent to a different email address."
         : "This invitation is no longer available."

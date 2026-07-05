@@ -6,16 +6,16 @@ export default function DocumentsPage() {
     <div>
       <PageHeader
         title="Documents"
-        description="Documents shared across your chains."
+        description="A cross-chain view of documents you have access to."
       />
       <Card>
         <CardContent className="flex h-64 flex-col items-center justify-center gap-2 text-center">
-          <p className="text-sm font-medium text-foreground">
-            No documents yet
-          </p>
+          <p className="text-sm font-medium text-foreground">Coming soon</p>
           <p className="max-w-sm text-sm text-muted-foreground">
-            Document storage and access control will use Supabase Storage,
-            built in Phase 3 per docs/ROADMAP.md.
+            Document upload, categories, and secure storage already work
+            per chain (see a chain&apos;s workspace) — this cross-chain
+            view, listing every document across all your chains in one
+            place, isn&apos;t built yet.
           </p>
         </CardContent>
       </Card>

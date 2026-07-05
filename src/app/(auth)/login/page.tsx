@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { Suspense } from "react";
+import { redirect } from "next/navigation";
 
 import {
   Card,
@@ -9,9 +10,26 @@ import {
   CardContent,
   CardFooter,
 } from "@/components/ui/card";
+import { createClient } from "@/lib/supabase/server";
 import { LoginForm } from "@/app/(auth)/login/login-form";
 
-export default function LoginPage() {
+export default async function LoginPage({
+  searchParams,
+}: {
+  searchParams: { redirect?: string };
+}) {
+  const supabase = createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  // Already signed in — honour ?redirect= (e.g. an invite link) if
+  // present, otherwise send them somewhere useful rather than re-showing
+  // the login form.
+  if (user) {
+    redirect(searchParams.redirect || "/chains");
+  }
+
   return (
     <Card>
       <CardHeader>

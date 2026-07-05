@@ -317,6 +317,48 @@ it should always reflect the current reasoning, not just the current state.
   columns structured to match what a real Stripe integration would
   populate**, not fields with any real payment processing behind them yet.
 
+### Hardening review (added during the commercial-grade hardening pass)
+
+- **Server action errors are now sanitized at the client boundary.** A new
+  `AppError` class (`src/lib/errors.ts`) marks errors as deliberately
+  safe-to-display; every server action now uses `toActionError()`, which
+  shows `AppError` messages verbatim but replaces anything else (including
+  raw Postgrest/Postgres errors, which could leak constraint or column
+  names) with a generic fallback, logging the real error server-side.
+  Found during this review: every action was previously showing
+  `err.message` unconditionally, regardless of the error's origin.
+- **Environment variables fail fast with a clear message
+  (`src/lib/env.ts`)** rather than passing `undefined` into the Supabase
+  SDK, which previously failed with a cryptic low-level error far from the
+  actual cause.
+- **Loading and error states are now real Next.js conventions
+  (`loading.tsx`, `error.tsx`, `not-found.tsx`)**, not absent. Found
+  during this review: zero existed anywhere in the app; every data-heavy
+  route blocked silently during navigation, and an unhandled error showed
+  Next.js's default screen even in production.
+- **`/tasks` and `/documents` (top-level nav pages) were rewritten from
+  misleading placeholders to honest ones.** Found during this review:
+  `/documents` claimed Storage "will be built in Phase 3," which was
+  false — Storage has existed since the guest-experience step. Both now
+  clearly state that per-chain functionality exists and the cross-chain
+  aggregated view specifically does not, rather than implying nothing
+  works.
+- **`/login` and `/signup` now redirect an already-authenticated user**,
+  honoring `?redirect=` when present (needed for the invite flow — an
+  already-logged-in person clicking an invite link must land on the
+  invite page, not be bounced to a hardcoded default). Note: this check
+  had to live on the pages themselves, not the shared `(auth)` layout —
+  Next.js layouts don't receive `searchParams`, only pages do. An earlier
+  draft of this fix put the check in the layout and would have silently
+  broken the redirect param; caught before committing.
+- **`supabase/seed.sql` is now idempotent** — a cleanup block at the top
+  deletes the demo chains, organisations, and auth users before
+  re-inserting, relying on existing `on delete cascade` relationships to
+  clean up everything beneath them. Found during this review: 12 of 32
+  insert statements had no `ON CONFLICT` guard (no natural unique key to
+  conflict against), so re-running the file directly — not via a full
+  `supabase db reset` — silently duplicated demo data.
+
 ## Open Questions (Unresolved)
 
 - **Multiple simultaneous organisation memberships**: the dashboard

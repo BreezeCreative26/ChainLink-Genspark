@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 
 import { createClient } from "@/lib/supabase/server";
 import { addComment } from "@/server/services/notes";
+import { toActionError } from "@/lib/errors";
 
 export async function addCommentAction(input: {
   chainId: string;
@@ -22,8 +23,7 @@ export async function addCommentAction(input: {
       myParticipantId: input.myParticipantId,
     });
   } catch (err) {
-    console.error("addCommentAction failed", err);
-    return { error: err instanceof Error ? err.message : "Could not post comment." };
+    return { error: toActionError(err, "Could not post comment.") };
   }
 
   revalidatePath(`/chains/${input.chainId}`);

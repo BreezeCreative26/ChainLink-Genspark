@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 
 import { createClient } from "@/lib/supabase/server";
 import { confirmMilestone } from "@/server/services/milestones";
+import { toActionError } from "@/lib/errors";
 
 export async function confirmMilestoneAction(input: {
   chainId: string;
@@ -15,11 +16,7 @@ export async function confirmMilestoneAction(input: {
   try {
     await confirmMilestone(supabase, input);
   } catch (err) {
-    console.error("confirmMilestoneAction failed", err);
-    return {
-      error:
-        err instanceof Error ? err.message : "Could not confirm this milestone.",
-    };
+    return { error: toActionError(err, "Could not confirm this milestone.") };
   }
 
   revalidatePath(`/chains/${input.chainId}`);

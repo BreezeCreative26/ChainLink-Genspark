@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 
 import { createClient } from "@/lib/supabase/server";
 import { recordDocumentUpload, getDocumentDownloadUrl } from "@/server/services/documents";
+import { toActionError } from "@/lib/errors";
 import type { DocumentCategory } from "@/types/chain";
 
 export async function recordDocumentUploadAction(input: {
@@ -19,11 +20,7 @@ export async function recordDocumentUploadAction(input: {
   try {
     await recordDocumentUpload(supabase, input);
   } catch (err) {
-    console.error("recordDocumentUploadAction failed", err);
-    return {
-      error:
-        err instanceof Error ? err.message : "Could not save the document record.",
-    };
+    return { error: toActionError(err, "Could not save the document record.") };
   }
 
   revalidatePath(`/chains/${input.chainId}`);
@@ -41,9 +38,6 @@ export async function getDocumentDownloadUrlAction(input: {
     const url = await getDocumentDownloadUrl(supabase, input);
     return { url };
   } catch (err) {
-    console.error("getDocumentDownloadUrlAction failed", err);
-    return {
-      error: err instanceof Error ? err.message : "Could not open this document.",
-    };
+    return { error: toActionError(err, "Could not open this document.") };
   }
 }

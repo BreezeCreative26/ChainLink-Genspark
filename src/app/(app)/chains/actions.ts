@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 
 import { createClient } from "@/lib/supabase/server";
 import { createChain } from "@/server/services/chains";
+import { toActionError } from "@/lib/errors";
 import type { CreateChainInput } from "@/types/chain";
 
 export async function createChainAction(input: CreateChainInput) {
@@ -17,12 +18,8 @@ export async function createChainAction(input: CreateChainInput) {
   try {
     chain = await createChain(supabase, input);
   } catch (err) {
-    console.error("createChainAction failed", err);
     return {
-      error:
-        err instanceof Error
-          ? err.message
-          : "Something went wrong creating the chain. Please try again.",
+      error: toActionError(err, "Something went wrong creating the chain. Please try again."),
     };
   }
 

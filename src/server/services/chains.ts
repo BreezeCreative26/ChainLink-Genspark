@@ -1,5 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 
+import { AppError } from "@/lib/errors";
+
 import type { Database } from "@/types/database";
 import type { AccessMode, ChainCreatorRole, CreateChainInput } from "@/types/chain";
 import * as chainsRepo from "@/server/repositories/chains.repository";
@@ -56,7 +58,7 @@ export async function createChain(supabase: TypedClient, input: CreateChainInput
   } = await supabase.auth.getUser();
 
   if (!user) {
-    throw new Error("Not authenticated");
+    throw new AppError("Not authenticated");
   }
 
   const { accessMode, organisationId } = await resolveAccessModeForCreator(

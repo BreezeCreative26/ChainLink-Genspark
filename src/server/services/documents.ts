@@ -1,5 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 
+import { AppError } from "@/lib/errors";
+
 import type { Database } from "@/types/database";
 import type { DocumentCategory } from "@/types/chain";
 import * as documentsRepo from "@/server/repositories/documents.repository";
@@ -31,7 +33,7 @@ export async function getDocumentDownloadUrl(
   }
 ) {
   const doc = await documentsRepo.getDocumentById(supabase, params.documentId);
-  if (!doc) throw new Error("Document not found.");
+  if (!doc) throw new AppError("Document not found.");
 
   const url = await documentsRepo.createSignedDownloadUrl(supabase, doc.storage_path);
 

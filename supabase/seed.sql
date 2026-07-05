@@ -14,6 +14,29 @@
 --   - the buyer's conveyancer is a connected professional at a second firm,
 --     demonstrating two firms connected to the same chain simultaneously
 
+-- ── Idempotency: safe to re-run this file directly (not just via a full
+--    `supabase db reset`) ──────────────────────────────────────────────
+-- Deleting the two demo chains and two demo organisations cascades away
+-- almost everything below (properties, chain_nodes, chain_participants,
+-- invitations, milestones, tasks, notes, documents, activity_logs, and
+-- memberships/branches all have `on delete cascade` back to chains or
+-- organisations). Deleting the demo auth.users rows last catches anything
+-- still referencing those profiles and cascades to profiles itself.
+delete from chains where id in (
+  'c1111111-1111-1111-1111-111111111111',
+  'c2222222-2222-2222-2222-222222222222'
+);
+delete from organisations where id in (
+  'a1111111-1111-1111-1111-111111111111',
+  'a2222222-2222-2222-2222-222222222222'
+);
+delete from auth.users where id in (
+  '11111111-1111-1111-1111-111111111111',
+  '22222222-2222-2222-2222-222222222222',
+  '33333333-3333-3333-3333-333333333333',
+  '44444444-4444-4444-4444-444444444444'
+);
+
 -- ── Auth users (local/dev only — Supabase Auth normally creates these) ───
 
 insert into auth.users (instance_id, id, aud, role, email, encrypted_password, email_confirmed_at, created_at, updated_at, raw_app_meta_data, raw_user_meta_data)

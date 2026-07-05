@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { Suspense } from "react";
+import { redirect } from "next/navigation";
 
 import {
   Card,
@@ -9,9 +10,23 @@ import {
   CardContent,
   CardFooter,
 } from "@/components/ui/card";
+import { createClient } from "@/lib/supabase/server";
 import { SignupForm } from "@/app/(auth)/signup/signup-form";
 
-export default function SignupPage() {
+export default async function SignupPage({
+  searchParams,
+}: {
+  searchParams: { redirect?: string };
+}) {
+  const supabase = createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (user) {
+    redirect(searchParams.redirect || "/chains");
+  }
+
   return (
     <Card>
       <CardHeader>

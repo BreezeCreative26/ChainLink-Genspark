@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 
 import { createClient } from "@/lib/supabase/server";
 import { acceptInvitation, declineInvitation } from "@/server/services/invitations";
+import { toActionError } from "@/lib/errors";
 import type { AcceptDecision } from "@/types/chain";
 
 export async function acceptInvitationAction(token: string, decision: AcceptDecision) {
@@ -13,9 +14,7 @@ export async function acceptInvitationAction(token: string, decision: AcceptDeci
   try {
     result = await acceptInvitation(supabase, token, decision);
   } catch (err) {
-    return {
-      error: err instanceof Error ? err.message : "Could not accept this invitation.",
-    };
+    return { error: toActionError(err, "Could not accept this invitation.") };
   }
 
   redirect(`/chains/${result.chainId}`);
@@ -27,9 +26,7 @@ export async function declineInvitationAction(token: string) {
   try {
     await declineInvitation(supabase, token);
   } catch (err) {
-    return {
-      error: err instanceof Error ? err.message : "Could not decline this invitation.",
-    };
+    return { error: toActionError(err, "Could not decline this invitation.") };
   }
 
   return { success: true };
