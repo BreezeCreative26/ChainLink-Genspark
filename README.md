@@ -71,7 +71,8 @@ seeded demo account: `jordan.blake@blakeco.example` / `password123` (see
 | `/chains/[id]/audit` | Full audit log (professional-only) |
 | `/tasks` | Cross-chain task list (placeholder) |
 | `/documents` | Cross-chain document list (placeholder) |
-| `/settings` | Account & business workspace settings (placeholder) |
+| `/settings` | Account, firm summary, and a link to billing |
+| `/settings/billing` | Plan, usage, and plan comparison (billing scaffolding — no real payment processing) |
 
 ### Scripts
 
@@ -135,7 +136,15 @@ Phase 2–3 per `docs/ROADMAP.md`).
 - Organisation/business account creation and onboarding (memberships and
   organisations currently only exist via seed data or direct DB access)
 - A firm switcher for people belonging to more than one organisation
-  (dashboard uses the first active membership — see `docs/DECISIONS.md`)
+  (dashboard and billing both use the first active membership — see
+  `docs/DECISIONS.md`)
+- Real payment processing — Stripe isn't integrated yet; `/settings/billing`
+  and `organisations.plan`/`subscription_status`/`stripe_*` columns are
+  scaffolding for it, and the webhook route
+  (`src/app/api/webhooks/stripe/route.ts`) is an explicit 501 stub
+- Hard usage-limit enforcement — usage vs. plan limits is shown, not
+  blocked, on purpose (see `docs/DECISIONS.md`, "Commercial / billing
+  scaffolding")
 - Tasks UI, and a dedicated internal-notes UI for firms (schema/RLS exist
   for both; only the guest-facing shared comment feed is built so far)
 - Full milestone management for professionals (creating/editing milestones,
@@ -183,3 +192,15 @@ than hiding it. Opening a document generates a fresh signed URL and logs
 `document.viewed`; the full audit trail (with proxy attribution and
 firm-internal entries) lives at `/chains/[id]/audit`, separate from the
 casual shared-only "Activity" feed guests see.
+
+## Commercial scaffolding
+
+Four plans (Starter, Growth, Business/Network, Enterprise) are defined in
+`src/config/plans.ts` — **prices and limits shown are illustrative
+placeholders, not finalized pricing.** Log in as `jordan.blake@blakeco.example`
+(Blake & Co. is seeded on Growth) to see `/settings/billing` with real
+usage numbers, or as `sam.ridley@fenwickconveyancing.example` (Fenwick is
+seeded on Starter) to see the Growth-plan branch-views upsell on the
+dashboard. No payment processing exists yet — see `docs/DECISIONS.md`
+("Commercial / billing scaffolding") for exactly what's real here versus
+what's placeholder ahead of Stripe integration.

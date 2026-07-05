@@ -48,9 +48,9 @@ on conflict (id) do nothing;
 
 -- ── Organisations, branches, memberships ─────────────────────────────────
 
-insert into organisations (id, name, org_type) values
-  ('a1111111-1111-1111-1111-111111111111', 'Blake & Co. Estate Agents', 'estate_agency'),
-  ('a2222222-2222-2222-2222-222222222222', 'Fenwick Conveyancing', 'conveyancing_firm')
+insert into organisations (id, name, org_type, plan) values
+  ('a1111111-1111-1111-1111-111111111111', 'Blake & Co. Estate Agents', 'estate_agency', 'growth'),
+  ('a2222222-2222-2222-2222-222222222222', 'Fenwick Conveyancing', 'conveyancing_firm', 'starter')
 on conflict (id) do nothing;
 
 insert into branches (id, organisation_id, name) values

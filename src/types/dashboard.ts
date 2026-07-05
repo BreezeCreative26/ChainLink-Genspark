@@ -11,6 +11,8 @@ export interface DashboardScope {
   organisationName: string | null;
   /** Only meaningful in 'firm' mode. Empty if the firm has no branches. */
   branches: DashboardBranch[];
+  /** Whether the org's plan includes branch-level dashboard views. */
+  branchViewsEnabled: boolean;
   /** Only meaningful in 'firm' mode. 'owner'/'admin' see all branches. */
   viewerRole: "owner" | "admin" | "agent" | "conveyancer" | "staff" | null;
   viewerBranchId: string | null;

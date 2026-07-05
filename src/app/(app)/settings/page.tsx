@@ -1,8 +1,40 @@
+import Link from "next/link";
+import { CreditCard } from "lucide-react";
+
 import { PageHeader } from "@/components/layout/page-header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
+import { createClient } from "@/lib/supabase/server";
+import { PLANS } from "@/config/plans";
 
-export default function SettingsPage() {
+export default async function SettingsPage() {
+  const supabase = createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  let membership: { organisation_id: string; role: string; organisations: { name: string; plan: string } | { name: string; plan: string }[] | null } | null = null;
+
+  if (user) {
+    const { data } = await supabase
+      .from("memberships")
+      .select("organisation_id, role, organisations ( name, plan )")
+      .eq("profile_id", user.id)
+      .eq("status", "active")
+      .limit(1)
+      .maybeSingle();
+    membership = data;
+  }
+
+  const org = membership
+    ? Array.isArray(membership.organisations)
+      ? membership.organisations[0]
+      : membership.organisations
+    : null;
+
+  const isAdmin = membership?.role === "owner" || membership?.role === "admin";
+
   return (
     <div>
       <PageHeader
@@ -16,9 +48,9 @@ export default function SettingsPage() {
             <CardTitle>Account</CardTitle>
           </CardHeader>
           <CardContent className="space-y-3 text-sm text-muted-foreground">
-            <p>Profile, email, and password management will live here.</p>
+            <p>Signed in as {user?.email}.</p>
             <Separator />
-            <p>Not yet wired to Supabase Auth — foundation stage only.</p>
+            <p>Profile editing (name, password) isn&apos;t built yet — foundation stage only.</p>
           </CardContent>
         </Card>
 
@@ -26,11 +58,40 @@ export default function SettingsPage() {
           <CardHeader>
             <CardTitle>Business workspace</CardTitle>
           </CardHeader>
-          <CardContent className="space-y-3 text-sm text-muted-foreground">
-            <p>
-              Firm details, branches, and team members will appear here once
-              organizations are implemented (Phase 2, per docs/ROADMAP.md).
-            </p>
+          <CardContent className="space-y-3">
+            {org ? (
+              <>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-foreground">{org.name}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {PLANS[org.plan as keyof typeof PLANS]?.name ?? org.plan} plan
+                    </p>
+                  </div>
+                  {isAdmin ? (
+                    <Button asChild variant="outline" size="sm">
+                      <Link href="/settings/billing">
+                        <CreditCard className="h-4 w-4" /> Manage billing
+                      </Link>
+                    </Button>
+                  ) : (
+                    <Button asChild variant="ghost" size="sm">
+                      <Link href="/settings/billing">View plan</Link>
+                    </Button>
+                  )}
+                </div>
+                {!isAdmin && (
+                  <p className="text-xs text-muted-foreground">
+                    Ask your firm admin to make changes to billing.
+                  </p>
+                )}
+              </>
+            ) : (
+              <p className="text-sm text-muted-foreground">
+                You&apos;re not connected to a firm. Business workspace and
+                billing settings appear here once you join or create one.
+              </p>
+            )}
           </CardContent>
         </Card>
       </div>

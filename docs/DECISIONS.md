@@ -271,6 +271,52 @@ it should always reflect the current reasoning, not just the current state.
   configuration is what actually enforces this — client-side validation
   can be bypassed and isn't the authority.
 
+### Commercial / billing scaffolding (added when billing scaffolding was implemented)
+
+- **Plan definitions are static config (`src/config/plans.ts`), not a
+  database table.** Plans, their limits, and their features are product
+  catalog data that changes when we decide to change it, not per-organisation
+  user data — a database table would be persistence for something that
+  isn't actually dynamic yet. An organisation's *current* plan is the only
+  part that's real data (`organisations.plan`).
+- **⚠️ PRICING NOTE: the four plans' prices and limits are illustrative
+  placeholders, not finalized commercial decisions.** Treat as subject to
+  commercial/pricing review before public launch, the same way earlier
+  steps flagged compliance specifics as subject to legal review.
+- **Usage (seats, branches, active chains) is computed on demand, not
+  tracked as a time-series.** Consistent with how dashboard risk was
+  computed in an earlier step: these numbers are already fully derivable
+  from `memberships`/`branches`/`chain_participants`, so a separate
+  usage-events table would be duplicate state with its own drift risk, not
+  actual new capability.
+- **Gating is informational, not blocking, at this stage.** Usage-vs-limit
+  is shown clearly, including over-limit states, but nothing is hard-blocked
+  when a firm exceeds its plan's numbers yet. Blocking a paying firm's core
+  workflow because of an internal counter — before any real payment
+  processing exists to justify it — would be a worse failure mode than
+  under-enforcing for now. Hard enforcement belongs with real Stripe
+  integration (docs/ROADMAP.md, Phase 4), not before it.
+- **One real feature gate was wired in as the demonstration: branch-level
+  dashboard filtering requires the `branch_views` feature (Growth plan and
+  above).** Chosen because it's something that already existed and worked,
+  not an inert flag added just to prove the gating mechanism — gating a
+  real feature is a more honest test than gating nothing. The gate applies
+  server-side (a Starter-plan admin can't bypass it via the branch query
+  parameter), not just in the UI.
+- **Billing settings are visible to any org member, but only owner/admin
+  see upgrade/manage actions.** Consistent with treating billing as
+  sensitive firm-admin territory — a regular team member can see the
+  firm's plan and usage (useful context) without being able to act on it.
+- **The Stripe webhook route exists as an explicit 501 stub
+  (`src/app/api/webhooks/stripe/route.ts`), not silently absent.** A
+  webhook endpoint that doesn't exist at all is indistinguishable from one
+  that's broken; returning 501 with a comment describing exactly what it
+  will eventually do is more honest scaffolding than no route at all.
+- **`organisations.plan`/`subscription_status`/`stripe_customer_id`/
+  `stripe_subscription_id`/`current_period_end`/`trial_ends_at` are placeholder
+  columns structured to match what a real Stripe integration would
+  populate**, not fields with any real payment processing behind them yet.
+
 ## Open Questions (Unresolved)
 
 - **Multiple simultaneous organisation memberships**: the dashboard

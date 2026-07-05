@@ -25,6 +25,12 @@ reasoning, this file for the specifics.
 ### Business-workspace layer
 
 - **`organisations`** — a firm (estate agency or conveyancing firm).
+  Carries billing/subscription fields (`plan`, `subscription_status`,
+  `stripe_customer_id`, `stripe_subscription_id`, `current_period_end`,
+  `trial_ends_at`) structured to match what a future Stripe integration
+  would populate — see `docs/DECISIONS.md` ("Commercial / billing
+  scaffolding"). Plan *definitions* (limits, features, pricing) live in
+  `src/config/plans.ts`, not the database.
 - **`branches`** — optional sub-tenancy within an organisation. Nullable
   FK from `memberships`, so a firm can stay flat until it needs branches.
 - **`profiles`** — extends `auth.users`. One identity type for everyone;

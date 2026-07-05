@@ -13,6 +13,8 @@ import type {
   UpcomingCompletionItem,
 } from "@/types/dashboard";
 import * as dashboardRepo from "@/server/repositories/dashboard.repository";
+import * as billingRepo from "@/server/repositories/billing.repository";
+import { hasFeature } from "@/config/plans";
 
 type TypedClient = SupabaseClient<Database>;
 
@@ -50,6 +52,7 @@ export async function resolveDashboardScope(
       organisationId: null,
       organisationName: null,
       branches: [],
+      branchViewsEnabled: false,
       viewerRole: null,
       viewerBranchId: null,
       chainIds: [],
@@ -70,6 +73,7 @@ export async function resolveDashboardScope(
       organisationId: null,
       organisationName: null,
       branches: [],
+      branchViewsEnabled: false,
       viewerRole: null,
       viewerBranchId: null,
       chainIds,
@@ -80,12 +84,16 @@ export async function resolveDashboardScope(
     ? membership.organisations[0]?.name
     : membership.organisations?.name;
 
-  const [branches, connectedParticipants] = await Promise.all([
+  const [branches, connectedParticipants, orgBillingRow] = await Promise.all([
     dashboardRepo.getBranchesForOrganisation(supabase, membership.organisation_id),
     dashboardRepo.listOrgConnectedChainParticipants(supabase, membership.organisation_id),
+    billingRepo.getOrganisationBillingRow(supabase, membership.organisation_id),
   ]);
 
+  const branchViewsEnabled = hasFeature(orgBillingRow.plan, "branch_views");
+
   const isAdmin = membership.role === "owner" || membership.role === "admin";
+  const effectiveRequestedBranchId = branchViewsEnabled ? requestedBranchId : undefined;
 
   let chainIds: string[];
   if (isAdmin) {
@@ -93,12 +101,12 @@ export async function resolveDashboardScope(
     // they explicitly chose. Narrowing by branch requires knowing which
     // teammate (by profile) sits in which branch — fetched only when
     // actually filtering, to avoid the extra query on every page load.
-    if (requestedBranchId) {
+    if (effectiveRequestedBranchId) {
       chainIds = await chainIdsForBranch(
         supabase,
         connectedParticipants,
         membership.organisation_id,
-        requestedBranchId
+        effectiveRequestedBranchId
       );
     } else {
       chainIds = [...new Set(connectedParticipants.map((p) => p.chain_id))];
@@ -106,7 +114,8 @@ export async function resolveDashboardScope(
   } else {
     // Non-admins are scoped to their own branch automatically — a
     // requestedBranchId from a non-admin is ignored, not honoured, so this
-    // can't be widened via the URL.
+    // can't be widened via the URL. This scoping applies regardless of
+    // plan (it's about who they are, not a paid feature).
     if (membership.branch_id) {
       chainIds = await chainIdsForBranch(
         supabase,
@@ -124,6 +133,7 @@ export async function resolveDashboardScope(
     organisationId: membership.organisation_id,
     organisationName: organisationName ?? "Your firm",
     branches,
+    branchViewsEnabled,
     viewerRole: membership.role,
     viewerBranchId: membership.branch_id,
     chainIds,

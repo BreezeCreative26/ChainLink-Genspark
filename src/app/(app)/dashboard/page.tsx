@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import Link from "next/link";
 import { Suspense } from "react";
 import {
   Link2,
@@ -67,11 +68,21 @@ export default async function DashboardPage({
         actions={
           scope.mode === "firm" &&
           (scope.viewerRole === "owner" || scope.viewerRole === "admin") &&
+          scope.branchViewsEnabled &&
           scope.branches.length > 0 ? (
             <BranchIndicator branchCount={scope.branches.length} />
           ) : undefined
         }
       />
+
+      {scope.mode === "firm" && scope.branches.length > 0 && !scope.branchViewsEnabled && (
+        <div className="mb-4 flex items-center justify-between gap-3 rounded-md border border-dashed border-border bg-secondary/40 px-4 py-2 text-xs text-muted-foreground">
+          <span>Branch-level dashboard views are available on the Growth plan and above.</span>
+          <Link href="/settings/billing" className="shrink-0 font-medium text-primary hover:underline">
+            View plans
+          </Link>
+        </div>
+      )}
 
       {/* Summary widgets */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
@@ -108,7 +119,7 @@ export default async function DashboardPage({
           </CardHeader>
           <CardContent className="space-y-4">
             <Suspense>
-              <FilterBar branches={scope.branches} />
+              <FilterBar branches={scope.branchViewsEnabled ? scope.branches : []} />
             </Suspense>
             <ChainsTable chains={data.chains} />
           </CardContent>
