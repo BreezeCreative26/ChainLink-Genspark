@@ -64,9 +64,12 @@ export type DocumentCategory = NonNullable<
 >;
 
 export const DOCUMENT_CATEGORY_LABELS: Record<DocumentCategory, string> = {
-  id_verification: "ID verification",
-  proof_of_funds: "Proof of funds",
-  proof_of_address: "Proof of address",
+  memorandum_of_sale: "Memorandum of sale",
+  id_docs: "ID documents",
+  sales_forms: "Sales forms",
+  epc: "EPC",
+  contract_pack: "Contract pack",
+  search_results: "Search results",
   mortgage_offer: "Mortgage offer",
   other: "Other",
 };

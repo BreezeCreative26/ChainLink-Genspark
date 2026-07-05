@@ -238,9 +238,12 @@ export interface Database {
           visibility: "shared" | "internal";
           organisation_id: string | null;
           category:
-            | "id_verification"
-            | "proof_of_funds"
-            | "proof_of_address"
+            | "memorandum_of_sale"
+            | "id_docs"
+            | "sales_forms"
+            | "epc"
+            | "contract_pack"
+            | "search_results"
             | "mortgage_offer"
             | "other"
             | null;

@@ -167,3 +167,12 @@ export async function currentUserHasProfessionalStanding(supabase: TypedClient) 
   if (!user) return false;
   return chainsRepo.hasNonGuestParticipation(supabase, user.id);
 }
+
+/**
+ * Just enough to guard/title a page (audit log, future settings pages)
+ * without paying for the full getChainDetail payload (milestones,
+ * documents, comments, invitations) when none of that is needed.
+ */
+export async function getChainHeader(supabase: TypedClient, chainId: string) {
+  return chainsRepo.getChainByIdForProfile(supabase, chainId);
+}

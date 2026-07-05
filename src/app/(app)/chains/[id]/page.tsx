@@ -1,10 +1,14 @@
 import { notFound } from "next/navigation";
+import Link from "next/link";
+import { ScrollText } from "lucide-react";
 
 import { PageHeader } from "@/components/layout/page-header";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { createClient } from "@/lib/supabase/server";
 import { getChainDetail } from "@/server/services/chains";
+import { getAllowedDocumentCategories } from "@/lib/document-access";
 import { InvitationsPanel } from "@/app/(app)/chains/[id]/invitations-panel";
 import { MilestonesPanel } from "@/app/(app)/chains/[id]/milestones-panel";
 import { DocumentsPanel } from "@/app/(app)/chains/[id]/documents-panel";
@@ -34,6 +38,7 @@ const ACTION_LABELS: Record<string, string> = {
   "invitation.declined": "Invitation declined",
   "milestone.confirmed": "Milestone confirmed",
   "document.uploaded": "Document uploaded",
+  "document.viewed": "Document opened",
   "comment.added": "Comment added",
 };
 
@@ -62,6 +67,10 @@ export default async function ChainDetailPage({
   const participants = chain.chain_participants ?? [];
   const myParticipant = participants.find((p) => p.profile_id === user?.id);
   const isGuest = myParticipant?.access_mode === "guest";
+  const allowedCategories = getAllowedDocumentCategories(
+    myParticipant?.access_mode ?? null,
+    (myParticipant?.role as Parameters<typeof getAllowedDocumentCategories>[1]) ?? null
+  );
 
   const commentRows = comments.map((c) => {
     const participant = Array.isArray(c.chain_participants)
@@ -139,15 +148,23 @@ export default async function ChainDetailPage({
               <DocumentsPanel
                 chainId={chain.id}
                 myParticipantId={myParticipant?.id ?? null}
+                myAccessMode={myParticipant?.access_mode ?? null}
+                myOrganisationId={myParticipant?.organisation_id ?? null}
                 documents={documents}
+                allowedCategories={allowedCategories}
               />
             </CardContent>
           </Card>
 
           {!isGuest && (
             <Card>
-              <CardHeader>
+              <CardHeader className="flex-row items-center justify-between space-y-0">
                 <CardTitle>Activity</CardTitle>
+                <Button asChild variant="ghost" size="sm">
+                  <Link href={`/chains/${chain.id}/audit`}>
+                    <ScrollText className="h-4 w-4" /> Full audit log
+                  </Link>
+                </Button>
               </CardHeader>
               <CardContent>
                 {activity.length === 0 ? (

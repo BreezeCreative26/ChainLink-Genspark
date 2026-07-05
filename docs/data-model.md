@@ -70,14 +70,23 @@ reasoning, this file for the specifics.
   "comments" when `visibility = 'shared'` — see `docs/DECISIONS.md`
   ("Guest experience") for why this isn't a separate table.
 - **`documents`** — metadata only; binary content lives in Supabase
-  Storage at `storage_path` (bucket `chain-documents`), with object-level
-  policies mirroring this table's visibility rules exactly
-  (`0013_document_storage.sql`). `category` is a fixed enum (ID
-  verification / proof of funds / proof of address / mortgage offer /
-  other) — required specifically for guest uploads, enforced by a
-  restrictive policy.
+  Storage at `storage_path` (bucket `chain-documents`, 20MB limit, fixed
+  MIME allowlist), with object-level policies mirroring this table's
+  visibility rules exactly (`0013_document_storage.sql`). `category` is a
+  fixed 8-value enum (memorandum of sale / ID docs / sales forms / EPC /
+  contract pack / search results / mortgage offer / other,
+  `0015_document_categories_and_rules.sql`). Upload is further restricted
+  by role: guests may only use `id_docs`/`sales_forms`/`other`;
+  `contract_pack`/`search_results` require a conveyancer role — see
+  `docs/DECISIONS.md` ("Document handling") for the explicit legal-review
+  flag on this mapping, and on the fact that guest uploads are necessarily
+  `shared` rather than per-participant private.
 - **`activity_logs`** — generic, immutable audit trail (`entity_type` +
-  `entity_id` rather than one row-type per action).
+  `entity_id` rather than one row-type per action). Powers both the casual
+  shared-only "Activity" feed every participant sees and the fuller,
+  professional-only audit log at `/chains/[id]/audit` (same table, no
+  separate audit schema — the audit view is a different query/permission
+  gate over the same rows, not different data).
 - **`notifications`** — per-profile, not per-participant, since a person
   should be notified as themselves regardless of which chain triggered it.
 

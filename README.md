@@ -67,7 +67,8 @@ seeded demo account: `jordan.blake@blakeco.example` / `password123` (see
 | `/dashboard` | Business dashboard: workload, risk, invites, activity — firm-wide or solo caseload |
 | `/chains` | Your chains, from real data |
 | `/chains/new` | Chain creation form |
-| `/chains/[id]` | Chain workspace: participants, invitations, activity |
+| `/chains/[id]` | Chain workspace: participants, invitations, milestones, documents, comments, activity |
+| `/chains/[id]/audit` | Full audit log (professional-only) |
 | `/tasks` | Cross-chain task list (placeholder) |
 | `/documents` | Cross-chain document list (placeholder) |
 | `/settings` | Account & business workspace settings (placeholder) |
@@ -167,3 +168,18 @@ and recent activity. The chains table supports status, risk, and search
 filters via the URL, and a branch filter appears automatically once a
 firm has more than one branch — see `docs/DECISIONS.md` ("Business
 dashboard") for how scope and branch visibility are determined.
+
+## Document handling and audit log
+
+Documents use 8 categories (memorandum of sale, ID docs, sales forms, EPC,
+contract pack, search results, mortgage offer, other), with upload
+restricted by role — guests get a narrower set, and `contract_pack`/
+`search_results` require a conveyancer role. **Two points are flagged for
+legal review in `docs/DECISIONS.md` ("Document handling")**: the category/
+role mapping hasn't been checked against real regulatory requirements, and
+guest-uploaded documents are necessarily visible to the whole chain (no
+per-participant privacy yet) — the upload UI surfaces this honestly rather
+than hiding it. Opening a document generates a fresh signed URL and logs
+`document.viewed`; the full audit trail (with proxy attribution and
+firm-internal entries) lives at `/chains/[id]/audit`, separate from the
+casual shared-only "Activity" feed guests see.

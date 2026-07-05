@@ -220,9 +220,66 @@ it should always reflect the current reasoning, not just the current state.
   belongs to more than one firm.** Multi-firm membership is a real but
   rare case — see the open question below.
 
+### Document handling (added when secure document handling was implemented)
+
+- **The 8-category taxonomy (memorandum of sale, ID docs, sales forms,
+  EPC, contract pack, search results, mortgage offer, other) replaces the
+  earlier 5-value guest-only list**, rather than sitting alongside it.
+  Existing data was migrated (`id_verification` → `id_docs`;
+  `proof_of_funds`/`proof_of_address` → `other`) in
+  `0015_document_categories_and_rules.sql`.
+- **⚠️ LEGAL REVIEW FLAG: the category/role upload mapping is a product
+  default, not a compliance ruling.** Concretely: guests may only upload
+  `id_docs`, `sales_forms`, or `other`; `contract_pack` and
+  `search_results` require a conveyancer role. This has not been checked
+  against CQS, Law Society, or AML regulatory requirements for who may
+  validly produce or handle these document types. Treat as a sensible
+  starting default to be confirmed with legal counsel before relying on it
+  in a regulated context.
+- **⚠️ LEGAL REVIEW FLAG: guest-uploaded documents are necessarily
+  `shared`, not per-participant private.** Because `visibility='internal'`
+  requires an `organisation_id` (which a guest never has), a guest cannot
+  upload anything privately — an ID document a buyer uploads is visible to
+  the seller, both agents, and both conveyancers, not just their own side.
+  This is a real data-minimization gap for sensitive categories like ID
+  documents. It is surfaced honestly in the upload UI (a visible warning)
+  rather than solved in this pass — a proper fix needs a genuine schema
+  change (e.g. a `document_access_grants` table naming exactly which
+  participants may see a given row), which is a real feature, not a quick
+  addition, and shouldn't be built speculatively before real usage
+  clarifies the actual requirement.
+- **Document downloads are now an on-demand, logged action
+  (`document.viewed`), not a URL pre-generated at page render.** This
+  replaced generating a signed URL for every document on every page load
+  — which both couldn't distinguish "the list rendered" from "someone
+  actually opened this file" and logged nothing. The new flow generates a
+  fresh signed URL and writes an audit entry at the moment of actual access.
+- **Routine professional document views are logged internal to the
+  viewer's own firm, not to the shared feed everyone sees.** A guest
+  viewing something already shared with them is logged as `shared` (their
+  only option, and not sensitive information); a connected professional's
+  view is logged `internal` to their own organisation, so "agent opened
+  the contract pack" doesn't appear in the other side's casual activity
+  feed.
+- **The full audit log is a separate, professional-only view — not an
+  expansion of the casual "Activity" card guests already see.** Guests
+  keep the existing shared-only feed unchanged; `/chains/[id]/audit`
+  adds proxy attribution, source, and visibility columns, and redirects
+  guests back to the main chain page if they reach it directly.
+- **Storage limits (20MB, a fixed MIME allowlist) are set on the bucket
+  itself, checked client-side only for immediate feedback.** The bucket
+  configuration is what actually enforces this — client-side validation
+  can be bypassed and isn't the authority.
+
 ## Open Questions (Unresolved)
 
 - **Multiple simultaneous organisation memberships**: the dashboard
   currently reflects only a person's first active membership. A firm
   switcher UI is the natural fix once someone genuinely needs it — not
   built speculatively now.
+- **Per-participant document access control**: should a sensitive category
+  (starting with `id_docs`) support restricting visibility to specific
+  participants rather than the whole chain, once real usage shows this is
+  needed? Flagged above as a legal-review item; the schema change involved
+  (likely a `document_access_grants` table) is real scope, not a small
+  addition.
