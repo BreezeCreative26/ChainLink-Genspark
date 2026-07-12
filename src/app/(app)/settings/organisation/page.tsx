@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import { ShieldCheck, Users } from "lucide-react";
 
 import { PageHeader } from "@/components/layout/page-header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -45,7 +46,23 @@ export default async function OrganisationSettingsPage() {
   return (
     <div>
       <PageHeader title="Team" description={`Manage who's part of ${org?.name ?? "your firm"}.`} />
-      <Card>
+      <section className="mb-6 flex flex-col gap-4 rounded-3xl border border-slate-200 bg-white px-6 py-6 shadow-sm sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex items-start gap-4">
+          <span className="rounded-2xl bg-slate-950 p-3 text-white">
+            <Users className="h-5 w-5" />
+          </span>
+          <div>
+            <h2 className="font-semibold text-slate-950">Role-based firm access</h2>
+            <p className="mt-1 max-w-2xl text-sm leading-6 text-muted-foreground">
+              Team roles control business navigation and administration. Chain editing still requires a direct participant record and remains enforced by row-level security.
+            </p>
+          </div>
+        </div>
+        <div className="flex w-fit items-center gap-2 rounded-xl bg-emerald-50 px-3 py-2 text-xs font-medium text-emerald-800">
+          <ShieldCheck className="h-4 w-4" /> {isAdmin ? "Admin controls enabled" : "Read-only team view"}
+        </div>
+      </section>
+      <Card className="rounded-2xl border-slate-200 shadow-sm">
         <CardHeader>
           <CardTitle>Members</CardTitle>
         </CardHeader>

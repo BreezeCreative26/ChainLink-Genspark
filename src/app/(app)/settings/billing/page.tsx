@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ArrowLeft, Check } from "lucide-react";
+import { ArrowLeft, Check, CreditCard, ShieldCheck, Sparkles } from "lucide-react";
 
 import { PageHeader } from "@/components/layout/page-header";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -88,8 +88,27 @@ export default async function BillingSettingsPage() {
         }
       />
 
-      <div className="grid gap-4 lg:grid-cols-3">
-        <Card className="lg:col-span-1">
+      <section className="mb-6 overflow-hidden rounded-3xl border border-indigo-900/30 bg-gradient-to-br from-slate-950 via-indigo-950 to-slate-900 px-6 py-7 text-white shadow-xl shadow-indigo-950/10 sm:px-8">
+        <div className="flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
+          <div>
+            <div className="mb-3 flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.18em] text-indigo-300">
+              <Sparkles className="h-4 w-4" /> Commercial workspace
+            </div>
+            <h2 className="text-2xl font-semibold tracking-tight">
+              {currentPlan.name} gives your firm shared operational visibility
+            </h2>
+            <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-300">
+              Professional plans fund cross-chain oversight, team and branch reporting. Buyers, sellers and single-chain guests remain free.
+            </p>
+          </div>
+          <div className="flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-xs text-slate-300">
+            <ShieldCheck className="h-4 w-4 text-emerald-300" /> No payment processor active
+          </div>
+        </div>
+      </section>
+
+      <div className="grid gap-5 lg:grid-cols-3">
+        <Card className="rounded-2xl border-slate-200 shadow-sm lg:col-span-1">
           <CardHeader>
             <div className="flex items-center justify-between">
               <CardTitle>{currentPlan.name}</CardTitle>
@@ -112,7 +131,7 @@ export default async function BillingSettingsPage() {
               </p>
             )}
 
-            <div className="rounded-md border border-dashed border-border bg-secondary/40 px-3 py-2 text-xs text-muted-foreground">
+            <div className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-3 text-xs leading-5 text-amber-900">
               Billing isn&apos;t connected to a payment processor yet — this
               is a preview of the plan structure ahead of Stripe
               integration (see docs/ROADMAP.md, Phase 4). No card is on
@@ -132,13 +151,18 @@ export default async function BillingSettingsPage() {
             const plan = PLANS[planId];
             const isCurrent = planId === billing.plan;
             return (
-              <Card key={planId} className={isCurrent ? "border-primary" : undefined}>
+              <Card
+                key={planId}
+                className={`rounded-2xl shadow-sm ${
+                  isCurrent ? "border-indigo-400 ring-2 ring-indigo-100" : "border-slate-200"
+                }`}
+              >
                 <CardHeader>
                   <div className="flex items-center justify-between">
                     <CardTitle className="text-base">{plan.name}</CardTitle>
                     {isCurrent && (
                       <Badge variant="accent" className="text-[10px]">
-                        Current plan
+                        <CreditCard className="mr-1 h-3 w-3" /> Current plan
                       </Badge>
                     )}
                   </div>

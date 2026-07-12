@@ -27,6 +27,7 @@ export function DocumentsPanel({
   myParticipantId,
   myAccessMode,
   myOrganisationId,
+  readOnly,
   documents,
   allowedCategories,
 }: {
@@ -34,6 +35,7 @@ export function DocumentsPanel({
   myParticipantId: string | null;
   myAccessMode: "proxy" | "guest" | "connected" | null;
   myOrganisationId: string | null;
+  readOnly: boolean;
   documents: DocumentRow[];
   allowedCategories: DocumentCategory[];
 }) {
@@ -147,7 +149,8 @@ export function DocumentsPanel({
         </ul>
       )}
 
-      <form onSubmit={handleUpload} className="space-y-2 border-t border-border pt-4">
+      {!readOnly && (
+        <form onSubmit={handleUpload} className="space-y-2 border-t border-border pt-4">
         <Input type="file" onChange={(e) => setFile(e.target.files?.[0] ?? null)} />
         <Input
           placeholder="Document title (optional)"
@@ -182,7 +185,8 @@ export function DocumentsPanel({
           <Upload className="h-4 w-4" /> {isPending ? "Uploading…" : "Upload document"}
         </Button>
         <p className="text-[11px] text-muted-foreground">PDF, JPEG, PNG, HEIC, or Word — up to 20MB.</p>
-      </form>
+        </form>
+      )}
     </div>
   );
 }

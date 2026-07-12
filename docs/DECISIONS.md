@@ -219,6 +219,22 @@ it should always reflect the current reasoning, not just the current state.
 - **One organisation membership drives the dashboard, even if a person
   belongs to more than one firm.** Multi-firm membership is a real but
   rare case — see the open question below.
+- **Firm-wide chain access is presented as an explicit read-only observer
+  mode when the viewer is not personally a participant.** Migration 0014
+  intentionally added SELECT-only organisation visibility. The chain workspace
+  now mirrors that boundary: observers can review shared content and their own
+  firm's internal rows, while milestone, task, topology, invitation, comment,
+  note and upload controls remain hidden. RLS remains authoritative; this UI
+  treatment prevents misleading controls without pretending UI hiding is the
+  security boundary.
+- **An unsubscribed professional creator may remain `guest` while still
+  receiving a direct-only solo portfolio.** The existing schema reserves
+  `proxy` for a stand-in participant with a required manager, so changing a
+  creator to `proxy` would violate `proxy_requires_manager`. Instead, a guest
+  participant with a professional chain role (agent, conveyancer or broker) is
+  recognised as an independent workspace user, and the solo dashboard queries
+  only chains where that profile has a direct professional participant row.
+  This grants no firm-wide visibility and does not loosen guest mutation rules.
 
 ### Document handling (added when secure document handling was implemented)
 

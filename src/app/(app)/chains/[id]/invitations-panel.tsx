@@ -46,10 +46,12 @@ interface InvitationRow {
 export function InvitationsPanel({
   chainId,
   myParticipantId,
+  readOnly,
   invitations,
 }: {
   chainId: string;
   myParticipantId: string | null;
+  readOnly: boolean;
   invitations: InvitationRow[];
 }) {
   const [showForm, setShowForm] = useState(false);
@@ -108,7 +110,7 @@ export function InvitationsPanel({
                   <Badge variant={badge.variant} className="text-[10px]">
                     {badge.label}
                   </Badge>
-                  {canRevoke && (
+                  {canRevoke && !readOnly && (
                     <Button
                       variant="ghost"
                       size="icon"
@@ -127,7 +129,7 @@ export function InvitationsPanel({
         </ul>
       )}
 
-      {showForm ? (
+      {!readOnly && (showForm ? (
         <form onSubmit={handleInvite} className="space-y-2 border-t border-border pt-4">
           <Input
             type="email"
@@ -165,7 +167,7 @@ export function InvitationsPanel({
         <Button variant="outline" size="sm" onClick={() => setShowForm(true)}>
           <Plus className="h-4 w-4" /> Invite someone
         </Button>
-      )}
+      ))}
     </div>
   );
 }

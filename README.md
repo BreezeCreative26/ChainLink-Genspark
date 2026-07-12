@@ -10,9 +10,13 @@
 - **Documents** — upload and share documents with role-based visibility
 - **Comments & Notes** — shared comments + firm-internal notes on each chain
 - **Invitations** — invite participants by email with role-based access
-- **Business Dashboard** — multi-chain workload view for professional firms
+- **Role-aware Workspaces** — tailored owner/admin, agent, conveyancer, progression, independent professional, buyer, seller and guest experiences
+- **Business Dashboard** — multi-chain workload, risk, invitation and completion oversight for professional firms
+- **Cross-chain Work Queue** — RLS-filtered tasks and milestones linked back to their canonical chain
+- **Document Library** — RLS-filtered document index with secure, audited opening in the chain workspace
+- **Read-only Firm Oversight** — colleagues can review connected chains without silently receiving mutation rights
 - **Audit Log** — full activity trail with proxy attribution and visibility control
-- **Notifications** — real-time notification system
+- **Notifications** — user-scoped chain and invitation updates
 
 ## Tech Stack
 
@@ -148,14 +152,17 @@ After running `supabase/seed.sql`:
 | `/` | Public | Product overview and live workspace preview |
 | `/signup` | Public | Role-aware account creation for professionals and participants |
 | `/login` | Public | Secure account access |
-| `/api/health` | Public | Vercel/runtime configuration health check; exposes status only, never secrets |
-| `/chains` | Authenticated | Chains available to the current participant |
-| `/chains/new` | Authenticated | Create a proxy-mode chain workspace |
-| `/chains/[id]` | Authorised participant | Chain milestones, topology, tasks, notes, documents, invites and activity |
-| `/dashboard` | Authenticated professional | Firm/solo caseload, workload, risk and completion overview |
-| `/notifications` | Authenticated | Participant notifications |
-| `/settings/organisation` | Authenticated professional | Organisation and team administration |
-| `/settings/billing` | Authenticated professional | Plan and usage overview |
+| `/api/health` | Public | Vercel readiness plus live Supabase Auth/PostgREST probes; exposes status only, never secrets |
+| `/chains` | Authenticated | Participant home or a professional's directly joined chains |
+| `/chains/new` | Authenticated | Create a new chain workspace |
+| `/chains/[id]` | RLS-authorised | Canonical chain workspace; direct participants can act, firm observers are explicitly read-only |
+| `/dashboard` | Authenticated professional | Role-aware firm or direct-only solo portfolio, workload, risk and completion overview |
+| `/tasks` | Authenticated professional | Cross-chain tasks and milestones in the viewer's authorised dashboard scope |
+| `/documents` | Authenticated professional | Cross-chain document index with chain-scoped secure opening |
+| `/notifications` | Authenticated | Current-user notifications |
+| `/settings` | Authenticated | Role-aware account and workspace controls |
+| `/settings/organisation` | Firm member | Organisation team view; management controls remain owner/admin-only |
+| `/settings/billing` | Firm member | Indicative plan and usage overview; no live payment processing |
 
 ## Deployment Status
 
@@ -163,7 +170,7 @@ After running `supabase/seed.sql`:
 - **Source delivery:** GitHub-connected deployment
 - **Install:** deterministic `npm ci` from the committed lockfile
 - **Runtime:** Node.js 18.17–22
-- **Health:** `GET /api/health`
+- **Health:** `GET /api/health` returns `ok`, `degraded`, or `configuration_required` and separately reports configuration, Supabase Auth API, and PostgREST readiness
 - **Required Vercel variables:** `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `NEXT_PUBLIC_APP_URL`
 
 A deployment without the two public Supabase variables now keeps the website,
@@ -180,7 +187,13 @@ Preview and Development), then redeploy to activate authentication.
 - Added professional vs buyer/seller account intent during signup
 - Added safe local-only post-auth redirect handling
 - Added graceful handling for incomplete Vercel/Supabase configuration
-- Added a non-secret health endpoint for deployment checks
+- Upgraded the non-secret health endpoint to probe Supabase Auth and PostgREST directly
+- Added a central membership/participant-derived workspace context for role-aware navigation
+- Added distinct professional, independent, buyer, seller and guest home experiences
+- Replaced placeholder tasks and documents pages with RLS-filtered cross-chain views
+- Added explicit read-only firm observer mode to the canonical chain workspace
+- Added richer plan, pricing, operating-mode and security context to the public website
+- Modernised settings, organisation, billing and notification surfaces
 - Restored strict TypeScript validation and removed stale Hono scaffold files
 - Pinned compatible Supabase packages and upgraded Next.js within the 14.2 release line
 
@@ -194,9 +207,11 @@ Preview and Development), then redeploy to activate authentication.
 
 ## Recommended Next Steps
 
-1. Configure the required Supabase variables in Vercel and confirm `/api/health` returns `status: ok`.
-2. Apply all migrations in `supabase/migrations/` to the production Supabase project.
-3. Configure Supabase Auth redirect URLs for the production and preview Vercel domains.
-4. Run an end-to-end production test: signup → create chain → add transaction → invite participant.
-5. Add email delivery for invitations and account lifecycle messages.
-6. Schedule the next major framework/Supabase upgrade to remove remaining dependency audit findings.
+1. Confirm the deployed `/api/health` reports `configuration: true`, `authApi: true`, and `dataApi: true`.
+2. Verify all migrations in `supabase/migrations/` and the `chain-documents` Storage policies are active in production.
+3. Configure Supabase Auth redirect URLs for the production and required preview Vercel domains.
+4. Run role/RLS production tests for owner, admin, agent, conveyancer, staff, independent professional, buyer, seller, guest, and firm observer.
+5. Add transaction email delivery for invitations and account lifecycle messages.
+6. Design per-participant document access grants before regulated handling of sensitive guest uploads.
+7. Add live payments only after the indicative plan structure and limits have been commercially approved.
+8. Schedule the next major framework/Supabase upgrade to remove remaining dependency audit findings.

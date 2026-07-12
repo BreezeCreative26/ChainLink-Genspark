@@ -1,4 +1,4 @@
-import { CheckCheck } from "lucide-react";
+import { BellRing, CheckCheck, Inbox } from "lucide-react";
 
 import { PageHeader } from "@/components/layout/page-header";
 import { Card, CardContent } from "@/components/ui/card";
@@ -11,7 +11,8 @@ import { NotificationItem } from "@/app/(app)/notifications/notification-item";
 export default async function NotificationsPage() {
   const supabase = createClient();
   const notifications = await getNotificationsForCurrentUser(supabase);
-  const hasUnread = notifications.some((n) => !n.read_at);
+  const unreadCount = notifications.filter((n) => !n.read_at).length;
+  const hasUnread = unreadCount > 0;
 
   return (
     <div>
@@ -29,8 +30,33 @@ export default async function NotificationsPage() {
         }
       />
 
+      <section className="mb-6 grid gap-4 sm:grid-cols-2">
+        <Card className="rounded-2xl border-slate-200 shadow-sm">
+          <CardContent className="flex items-center gap-4 p-5">
+            <span className="rounded-xl bg-indigo-50 p-3 text-indigo-700">
+              <BellRing className="h-5 w-5" />
+            </span>
+            <div>
+              <p className="text-2xl font-semibold tracking-tight text-slate-950">{unreadCount}</p>
+              <p className="text-xs text-muted-foreground">Unread updates</p>
+            </div>
+          </CardContent>
+        </Card>
+        <Card className="rounded-2xl border-slate-200 shadow-sm">
+          <CardContent className="flex items-center gap-4 p-5">
+            <span className="rounded-xl bg-slate-100 p-3 text-slate-700">
+              <Inbox className="h-5 w-5" />
+            </span>
+            <div>
+              <p className="text-2xl font-semibold tracking-tight text-slate-950">{notifications.length}</p>
+              <p className="text-xs text-muted-foreground">Total notifications</p>
+            </div>
+          </CardContent>
+        </Card>
+      </section>
+
       {notifications.length === 0 ? (
-        <Card>
+        <Card className="rounded-2xl border-slate-200 shadow-sm">
           <CardContent className="flex h-48 items-center justify-center text-sm text-muted-foreground">
             No notifications yet.
           </CardContent>

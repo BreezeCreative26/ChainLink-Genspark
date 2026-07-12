@@ -16,10 +16,12 @@ interface CommentRow {
 export function CommentsPanel({
   chainId,
   myParticipantId,
+  readOnly,
   comments,
 }: {
   chainId: string;
   myParticipantId: string | null;
+  readOnly: boolean;
   comments: CommentRow[];
 }) {
   const [body, setBody] = useState("");
@@ -71,7 +73,8 @@ export function CommentsPanel({
         </ul>
       )}
 
-      <form onSubmit={handleSubmit} className="space-y-2 border-t border-border pt-4">
+      {!readOnly && (
+        <form onSubmit={handleSubmit} className="space-y-2 border-t border-border pt-4">
         <textarea
           value={body}
           onChange={(e) => setBody(e.target.value)}
@@ -83,7 +86,8 @@ export function CommentsPanel({
         <Button type="submit" size="sm" disabled={isPending}>
           {isPending ? "Posting…" : "Post comment"}
         </Button>
-      </form>
+        </form>
+      )}
     </div>
   );
 }

@@ -18,9 +18,10 @@ export default function MarketingLayout({
           </Link>
           <nav aria-label="Primary navigation" className="flex items-center gap-1 sm:gap-2">
             <div className="mr-3 hidden items-center gap-6 lg:flex">
-              <Link href="/#platform" className="text-sm font-medium text-muted-foreground transition-colors hover:text-foreground">How it works</Link>
+              <Link href="/#how-it-works" className="text-sm font-medium text-muted-foreground transition-colors hover:text-foreground">How it works</Link>
+              <Link href="/#for-everyone" className="text-sm font-medium text-muted-foreground transition-colors hover:text-foreground">For every role</Link>
               <Link href="/#security" className="text-sm font-medium text-muted-foreground transition-colors hover:text-foreground">Security</Link>
-              <Link href="/#pricing" className="text-sm font-medium text-muted-foreground transition-colors hover:text-foreground">Who pays</Link>
+              <Link href="/#pricing" className="text-sm font-medium text-muted-foreground transition-colors hover:text-foreground">Pricing</Link>
             </div>
             <Button asChild variant="ghost" size="sm">
               <Link href="/login">Log in</Link>
@@ -44,8 +45,10 @@ export default function MarketingLayout({
             </p>
           </div>
           <div className="flex flex-wrap gap-x-6 gap-y-2 text-sm text-muted-foreground sm:justify-end">
-            <Link href="/#platform" className="hover:text-foreground">Platform</Link>
+            <Link href="/#how-it-works" className="hover:text-foreground">Platform</Link>
+            <Link href="/#for-everyone" className="hover:text-foreground">For every role</Link>
             <Link href="/#security" className="hover:text-foreground">Security</Link>
+            <Link href="/#pricing" className="hover:text-foreground">Pricing</Link>
             <Link href="/login" className="hover:text-foreground">Log in</Link>
           </div>
           <div className="border-t border-border pt-5 text-xs text-muted-foreground sm:col-span-2 sm:flex sm:justify-between">

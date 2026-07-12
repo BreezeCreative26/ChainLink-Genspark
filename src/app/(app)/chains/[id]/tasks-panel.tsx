@@ -27,11 +27,13 @@ export function TasksPanel({
   chainId,
   myParticipantId,
   myOrganisationId,
+  readOnly,
   tasks,
 }: {
   chainId: string;
   myParticipantId: string | null;
   myOrganisationId: string | null;
+  readOnly: boolean;
   tasks: TaskRow[];
 }) {
   const [isPending, startTransition] = useTransition();
@@ -105,24 +107,30 @@ export function TasksPanel({
                   </Badge>
                 </div>
               </div>
-              <Select
-                className="w-32 shrink-0"
-                value={t.status}
-                disabled={isPending}
-                onChange={(e) => handleStatusChange(t, e.target.value as TaskStatus)}
-              >
-                {STATUS_OPTIONS.map((s) => (
-                  <option key={s} value={s}>
-                    {s.replace("_", " ")}
-                  </option>
-                ))}
-              </Select>
+              {readOnly ? (
+                <span className="text-xs capitalize text-muted-foreground">
+                  {t.status.replace("_", " ")}
+                </span>
+              ) : (
+                <Select
+                  className="w-32 shrink-0"
+                  value={t.status}
+                  disabled={isPending}
+                  onChange={(e) => handleStatusChange(t, e.target.value as TaskStatus)}
+                >
+                  {STATUS_OPTIONS.map((s) => (
+                    <option key={s} value={s}>
+                      {s.replace("_", " ")}
+                    </option>
+                  ))}
+                </Select>
+              )}
             </li>
           ))}
         </ul>
       )}
 
-      {showForm ? (
+      {!readOnly && (showForm ? (
         <form onSubmit={handleCreate} className="space-y-2 border-t border-border pt-4">
           <Input
             placeholder="Task title"
@@ -155,7 +163,7 @@ export function TasksPanel({
         <Button variant="outline" size="sm" onClick={() => setShowForm(true)}>
           <Plus className="h-4 w-4" /> Add task
         </Button>
-      )}
+      ))}
     </div>
   );
 }

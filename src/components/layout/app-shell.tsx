@@ -5,6 +5,7 @@ import { useState } from "react";
 import { Sidebar } from "@/components/layout/sidebar";
 import { Topbar } from "@/components/layout/topbar";
 import { cn } from "@/lib/utils";
+import type { WorkspaceContext } from "@/types/workspace";
 
 /**
  * Shared shell for all authenticated app routes (dashboard, chains, tasks,
@@ -19,20 +20,20 @@ import { cn } from "@/lib/utils";
 export function AppShell({
   children,
   profile,
-  showDashboard,
+  workspace,
   unreadCount,
 }: {
   children: React.ReactNode;
   profile: { full_name: string | null; email: string } | null;
-  showDashboard: boolean;
+  workspace: WorkspaceContext;
   unreadCount: number;
 }) {
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
 
   return (
-    <div className="flex h-dvh overflow-hidden bg-background">
+    <div className="flex h-dvh overflow-hidden bg-[#f5f7f7]">
       {/* Desktop sidebar */}
-      <Sidebar className="hidden md:flex" showDashboard={showDashboard} />
+      <Sidebar className="hidden md:flex" workspace={workspace} />
 
       {/* Mobile sidebar drawer */}
       {mobileNavOpen && (
@@ -45,7 +46,7 @@ export function AppShell({
           <Sidebar
             className={cn("relative z-50 flex")}
             onNavigate={() => setMobileNavOpen(false)}
-            showDashboard={showDashboard}
+            workspace={workspace}
           />
         </div>
       )}
@@ -55,8 +56,11 @@ export function AppShell({
           onMenuClick={() => setMobileNavOpen(true)}
           profile={profile}
           unreadCount={unreadCount}
+          workspace={workspace}
         />
-        <main className="flex-1 overflow-y-auto p-6">{children}</main>
+        <main className="flex-1 overflow-y-auto px-4 py-5 sm:px-6 lg:px-8 lg:py-7">
+          <div className="mx-auto w-full max-w-[1500px]">{children}</div>
+        </main>
       </div>
     </div>
   );

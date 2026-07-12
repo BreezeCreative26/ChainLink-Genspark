@@ -2,19 +2,24 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import { Suspense } from "react";
 import {
-  Link2,
   AlertTriangle,
-  Mail,
-  ListChecks,
+  ArrowRight,
   CalendarCheck2,
+  Link2,
+  ListChecks,
+  Mail,
+  Plus,
+  ShieldCheck,
+  Users,
 } from "lucide-react";
 
 import { PageHeader } from "@/components/layout/page-header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { createClient } from "@/lib/supabase/server";
-import { currentUserHasProfessionalStanding } from "@/server/services/chains";
 import { getDashboardData } from "@/server/services/dashboard";
+import { getWorkspaceContext } from "@/server/services/workspace";
 import { FilterBar } from "@/app/(app)/dashboard/filter-bar";
 import { ChainsTable } from "@/app/(app)/dashboard/chains-table";
 import type { ChainRow } from "@/types/dashboard";
@@ -36,13 +41,13 @@ export default async function DashboardPage({
   searchParams: { status?: string; risk?: string; branch?: string; search?: string };
 }) {
   const supabase = createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) redirect("/login");
 
-  // Belt-and-braces: the sidebar already hides this link for pure guests,
-  // but the route itself must not be reachable just by typing the URL.
-  const hasProfessionalStanding = await currentUserHasProfessionalStanding(supabase);
-  if (!hasProfessionalStanding) {
-    redirect("/chains");
-  }
+  const workspace = await getWorkspaceContext(supabase, user.id);
+  if (!workspace.canViewBusinessDashboard) redirect("/chains");
 
   const data = await getDashboardData(
     supabase,
@@ -55,67 +60,85 @@ export default async function DashboardPage({
   );
 
   const { scope } = data;
+  const presentation = dashboardPresentation(scope.viewerRole, scope.mode);
+  const isAdmin = scope.viewerRole === "owner" || scope.viewerRole === "admin";
 
   return (
     <div>
+      <section className="mb-6 overflow-hidden rounded-3xl bg-[#102f34] px-6 py-6 text-white shadow-[0_18px_55px_-35px_rgba(16,47,52,0.9)] sm:px-8 sm:py-8">
+        <div className="flex flex-col justify-between gap-6 lg:flex-row lg:items-end">
+          <div>
+            <div className="mb-3 flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.15em] text-teal-200">
+              <ShieldCheck className="h-4 w-4" /> {presentation.eyebrow}
+            </div>
+            <h1 className="font-display text-3xl font-semibold tracking-tight sm:text-4xl">
+              {presentation.title}
+            </h1>
+            <p className="mt-3 max-w-2xl text-sm leading-6 text-white/60 sm:text-base">
+              {scope.mode === "firm"
+                ? `${presentation.description} Live across ${scope.organisationName}.`
+                : "Your independent chain progression view. Add a firm workspace whenever you need team and branch oversight."}
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {isAdmin && (
+              <Button asChild variant="outline" className="border-white/15 bg-white/10 text-white hover:bg-white/15 hover:text-white">
+                <Link href="/settings/organisation">
+                  <Users className="h-4 w-4" /> Manage team
+                </Link>
+              </Button>
+            )}
+            <Button asChild className="bg-teal-300 text-slate-950 hover:bg-teal-200">
+              <Link href="/chains/new">
+                <Plus className="h-4 w-4" /> New chain
+              </Link>
+            </Button>
+          </div>
+        </div>
+      </section>
+
       <PageHeader
-        title="Dashboard"
-        description={
-          scope.mode === "firm"
-            ? `Workload, risk, and milestones across ${scope.organisationName}'s chains.`
-            : "Your solo caseload — connect a firm to see your whole team's chains here."
-        }
+        title="Live portfolio"
+        description={presentation.focus}
         actions={
-          scope.mode === "firm" &&
-          (scope.viewerRole === "owner" || scope.viewerRole === "admin") &&
-          scope.branchViewsEnabled &&
-          scope.branches.length > 0 ? (
+          scope.mode === "firm" && isAdmin && scope.branchViewsEnabled && scope.branches.length > 0 ? (
             <BranchIndicator branchCount={scope.branches.length} />
           ) : undefined
         }
+        className="mb-4"
       />
 
       {scope.mode === "firm" && scope.branches.length > 0 && !scope.branchViewsEnabled && (
-        <div className="mb-4 flex items-center justify-between gap-3 rounded-md border border-dashed border-border bg-secondary/40 px-4 py-2 text-xs text-muted-foreground">
-          <span>Branch-level dashboard views are available on the Growth plan and above.</span>
-          <Link href="/settings/billing" className="shrink-0 font-medium text-primary hover:underline">
-            View plans
+        <div className="mb-4 flex items-center justify-between gap-3 rounded-xl border border-dashed border-border bg-white px-4 py-3 text-xs text-muted-foreground">
+          <span>Branch-level portfolio views are available on Growth and above.</span>
+          <Link href="/settings/billing" className="shrink-0 font-semibold text-primary hover:underline">
+            Compare plans
           </Link>
         </div>
       )}
 
-      {/* Summary widgets */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
-        <SummaryCard
-          label="Active chains"
-          value={data.activeChainsCount}
-          icon={Link2}
-        />
-        <SummaryCard
-          label="At risk"
-          value={data.atRiskChains.length}
-          icon={AlertTriangle}
-          tone={data.atRiskChains.length > 0 ? "destructive" : undefined}
-        />
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
+        <SummaryCard label="Active chains" value={data.activeChainsCount} icon={Link2} />
+        <SummaryCard label="At risk" value={data.atRiskChains.length} icon={AlertTriangle} tone={data.atRiskChains.length > 0 ? "destructive" : undefined} />
         <SummaryCard label="Pending invites" value={data.pendingInvites.length} icon={Mail} />
-        <SummaryCard
-          label="Overdue actions"
-          value={data.overdueActions.length}
-          icon={ListChecks}
-          tone={data.overdueActions.length > 0 ? "destructive" : undefined}
-        />
-        <SummaryCard
-          label="Upcoming completions"
-          value={data.upcomingCompletions.length}
-          icon={CalendarCheck2}
-        />
+        <SummaryCard label="Overdue actions" value={data.overdueActions.length} icon={ListChecks} tone={data.overdueActions.length > 0 ? "destructive" : undefined} />
+        <SummaryCard label="Upcoming completions" value={data.upcomingCompletions.length} icon={CalendarCheck2} />
       </div>
 
-      <div className="mt-6 grid gap-4 lg:grid-cols-3">
-        {/* Chains table with filters */}
-        <Card className="lg:col-span-2">
+      <div className="mt-6 grid gap-5 xl:grid-cols-3">
+        <Card className="overflow-hidden border-0 shadow-sm ring-1 ring-border xl:col-span-2">
           <CardHeader>
-            <CardTitle>Chains</CardTitle>
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <CardTitle>Chain portfolio</CardTitle>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Open any chain to work in its canonical shared workspace.
+                </p>
+              </div>
+              <Button asChild variant="ghost" size="sm">
+                <Link href="/chains">View all <ArrowRight className="h-4 w-4" /></Link>
+              </Button>
+            </div>
           </CardHeader>
           <CardContent className="space-y-4">
             <Suspense>
@@ -125,121 +148,78 @@ export default async function DashboardPage({
           </CardContent>
         </Card>
 
-        <div className="space-y-4">
-          {/* Recent activity */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Recent activity</CardTitle>
-            </CardHeader>
-            <CardContent>
-              {data.recentActivity.length === 0 ? (
-                <p className="text-sm text-muted-foreground">No activity yet.</p>
-              ) : (
-                <ul className="space-y-3">
-                  {data.recentActivity.map((entry) => (
-                    <li key={entry.id} className="text-sm">
-                      <p className="text-foreground">
-                        {ACTION_LABELS[entry.action] ?? entry.action}
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        <span className="font-mono">{entry.chainRef}</span> ·{" "}
-                        {new Date(entry.createdAt).toLocaleString("en-GB")}
-                      </p>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </CardContent>
-          </Card>
+        <div className="space-y-5">
+          <DashboardListCard title="Recent activity" empty="No activity yet.">
+            {data.recentActivity.map((entry) => (
+              <li key={entry.id} className="border-b border-border/70 pb-3 last:border-0 last:pb-0">
+                <p className="text-sm font-medium text-foreground">{ACTION_LABELS[entry.action] ?? entry.action}</p>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  <Link href={`/chains/${entry.chainId}`} className="font-mono text-primary hover:underline">{entry.chainRef}</Link>
+                  {" · "}{new Date(entry.createdAt).toLocaleString("en-GB")}
+                </p>
+              </li>
+            ))}
+          </DashboardListCard>
 
-          {/* Pending invites */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Pending invites</CardTitle>
-            </CardHeader>
-            <CardContent>
-              {data.pendingInvites.length === 0 ? (
-                <p className="text-sm text-muted-foreground">Nothing pending.</p>
-              ) : (
-                <ul className="space-y-2">
-                  {data.pendingInvites.slice(0, 6).map((invite) => (
-                    <li key={invite.id} className="flex items-center justify-between gap-2">
-                      <div className="min-w-0">
-                        <p className="truncate text-sm text-foreground">{invite.email}</p>
-                        <p className="font-mono text-xs text-muted-foreground">
-                          {invite.chainRef}
-                        </p>
-                      </div>
-                      <Badge variant="secondary" className="shrink-0 text-[10px]">
-                        {invite.status}
-                      </Badge>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </CardContent>
-          </Card>
+          <DashboardListCard title="Pending invites" empty="Nothing pending.">
+            {data.pendingInvites.slice(0, 6).map((invite) => (
+              <li key={invite.id} className="flex items-center justify-between gap-2 border-b border-border/70 pb-3 last:border-0 last:pb-0">
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-medium text-foreground">{invite.email}</p>
+                  <Link href={`/chains/${invite.chainId}`} className="font-mono text-xs text-primary hover:underline">{invite.chainRef}</Link>
+                </div>
+                <Badge variant="secondary" className="shrink-0 text-[10px]">{invite.status}</Badge>
+              </li>
+            ))}
+          </DashboardListCard>
 
-          {/* Overdue actions */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Overdue actions</CardTitle>
-            </CardHeader>
-            <CardContent>
-              {data.overdueActions.length === 0 ? (
-                <p className="text-sm text-muted-foreground">Nothing overdue.</p>
-              ) : (
-                <ul className="space-y-2">
-                  {data.overdueActions.slice(0, 6).map((action) => (
-                    <li key={`${action.kind}-${action.id}`} className="flex items-center justify-between gap-2">
-                      <div className="min-w-0">
-                        <p className="truncate text-sm text-foreground">{action.title}</p>
-                        <p className="font-mono text-xs text-muted-foreground">
-                          {action.chainRef}
-                        </p>
-                      </div>
-                      <span className="shrink-0 text-xs text-destructive">
-                        Due {new Date(action.dueDate).toLocaleDateString("en-GB")}
-                      </span>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </CardContent>
-          </Card>
+          <DashboardListCard title="Overdue actions" empty="Nothing overdue.">
+            {data.overdueActions.slice(0, 6).map((action) => (
+              <li key={`${action.kind}-${action.id}`} className="flex items-center justify-between gap-2 border-b border-border/70 pb-3 last:border-0 last:pb-0">
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-medium text-foreground">{action.title}</p>
+                  <Link href={`/chains/${action.chainId}`} className="font-mono text-xs text-primary hover:underline">{action.chainRef}</Link>
+                </div>
+                <span className="shrink-0 text-xs font-medium text-destructive">
+                  {new Date(action.dueDate).toLocaleDateString("en-GB")}
+                </span>
+              </li>
+            ))}
+          </DashboardListCard>
 
-          {/* Upcoming completions */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Upcoming completions</CardTitle>
-            </CardHeader>
-            <CardContent>
-              {data.upcomingCompletions.length === 0 ? (
-                <p className="text-sm text-muted-foreground">None scheduled.</p>
-              ) : (
-                <ul className="space-y-2">
-                  {data.upcomingCompletions.map((c) => (
-                    <li key={c.chainId} className="flex items-center justify-between gap-2">
-                      <div className="min-w-0">
-                        <p className="truncate text-sm text-foreground">
-                          {c.addressLine1 ?? c.chainRef}
-                        </p>
-                        <p className="font-mono text-xs text-muted-foreground">{c.chainRef}</p>
-                      </div>
-                      {c.dueDate && (
-                        <span className="shrink-0 text-xs text-muted-foreground">
-                          {new Date(c.dueDate).toLocaleDateString("en-GB")}
-                        </span>
-                      )}
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </CardContent>
-          </Card>
+          <DashboardListCard title="Upcoming completions" empty="None scheduled.">
+            {data.upcomingCompletions.map((completion) => (
+              <li key={completion.chainId} className="flex items-center justify-between gap-2 border-b border-border/70 pb-3 last:border-0 last:pb-0">
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-medium text-foreground">{completion.addressLine1 ?? completion.chainRef}</p>
+                  <Link href={`/chains/${completion.chainId}`} className="font-mono text-xs text-primary hover:underline">{completion.chainRef}</Link>
+                </div>
+                {completion.dueDate && <span className="shrink-0 text-xs text-muted-foreground">{new Date(completion.dueDate).toLocaleDateString("en-GB")}</span>}
+              </li>
+            ))}
+          </DashboardListCard>
         </div>
       </div>
     </div>
+  );
+}
+
+function DashboardListCard({
+  title,
+  empty,
+  children,
+}: {
+  title: string;
+  empty: string;
+  children: React.ReactNode[];
+}) {
+  return (
+    <Card className="border-0 shadow-sm ring-1 ring-border">
+      <CardHeader className="pb-3"><CardTitle className="text-base">{title}</CardTitle></CardHeader>
+      <CardContent>
+        {children.length === 0 ? <p className="text-sm text-muted-foreground">{empty}</p> : <ul className="space-y-3">{children}</ul>}
+      </CardContent>
+    </Card>
   );
 }
 
@@ -255,29 +235,31 @@ function SummaryCard({
   tone?: "destructive";
 }) {
   return (
-    <Card>
+    <Card className="border-0 shadow-sm ring-1 ring-border">
       <CardHeader className="flex-row items-center justify-between space-y-0 pb-2">
-        <CardTitle className="text-sm font-medium text-muted-foreground">{label}</CardTitle>
-        <Icon
-          className={`h-4 w-4 ${tone === "destructive" ? "text-destructive" : "text-muted-foreground"}`}
-          strokeWidth={1.75}
-        />
+        <CardTitle className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{label}</CardTitle>
+        <span className={`flex h-8 w-8 items-center justify-center rounded-xl ${tone === "destructive" ? "bg-red-50 text-destructive" : "bg-accent text-primary"}`}>
+          <Icon className="h-4 w-4" strokeWidth={1.9} />
+        </span>
       </CardHeader>
       <CardContent>
-        <div
-          className={`text-2xl font-semibold ${tone === "destructive" && value > 0 ? "text-destructive" : "text-foreground"}`}
-        >
-          {value}
-        </div>
+        <div className={`text-3xl font-semibold tracking-tight ${tone === "destructive" && value > 0 ? "text-destructive" : "text-foreground"}`}>{value}</div>
       </CardContent>
     </Card>
   );
 }
 
+function dashboardPresentation(
+  role: "owner" | "admin" | "agent" | "conveyancer" | "staff" | null,
+  mode: "firm" | "solo"
+) {
+  if (mode === "solo") return { eyebrow: "Independent workspace", title: "Keep every link moving", description: "Track the full chain even when counterparties have not joined", focus: "Risk, actions, and upcoming completions across the chains you manage." };
+  if (role === "owner" || role === "admin") return { eyebrow: "Firm control centre", title: "See the operation, not just the cases", description: "Monitor workload, risk, branch coverage, and team activity", focus: "A management view across every chain your firm is connected to." };
+  if (role === "conveyancer") return { eyebrow: "Legal progression", title: "Prioritise the matters that need legal action", description: "Bring overdue milestones, documents, and completion dates into one view", focus: "Your branch-scoped legal workload, ordered around risk and deadlines." };
+  if (role === "agent") return { eyebrow: "Sales progression", title: "Protect the pipeline from avoidable delays", description: "See every dependency, outstanding action, and completion signal", focus: "Your branch-scoped sales pipeline with the whole chain in context." };
+  return { eyebrow: "Progression workspace", title: "Work the right actions in the right order", description: "Coordinate milestones, invitations, and completion activity", focus: "Your authorised caseload and the next actions across it." };
+}
+
 function BranchIndicator({ branchCount }: { branchCount: number }) {
-  return (
-    <Badge variant="outline" className="text-xs">
-      {branchCount} {branchCount === 1 ? "branch" : "branches"} — filter below
-    </Badge>
-  );
+  return <Badge variant="outline" className="rounded-full text-xs">{branchCount} {branchCount === 1 ? "branch" : "branches"} · filter below</Badge>;
 }

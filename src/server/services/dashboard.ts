@@ -28,8 +28,9 @@ const RISK_INACTIVITY_DAYS = 14;
  *     every chain ANY member of that org is connected to — this is the
  *     paid, multi-chain value the business tier is for.
  *   - 'solo': no organisation membership. Scope is just the viewer's own
- *     connected/proxy chains — this is what keeps the platform useful for
- *     a single unsubscribed agent (the core design rule in
+ *     direct professional participant rows, including guest-mode work while
+ *     unsubscribed — this keeps the platform useful for a solo agent without
+ *     broadening access beyond chains they personally joined (the core rule in
  *     docs/PRODUCT_BRIEF.md).
  *
  * Branch scoping (only meaningful in 'firm' mode): owners/admins can see

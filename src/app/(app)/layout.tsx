@@ -2,8 +2,8 @@ import { redirect } from "next/navigation";
 
 import { createClient } from "@/lib/supabase/server";
 import { AppShell } from "@/components/layout/app-shell";
-import { currentUserHasProfessionalStanding } from "@/server/services/chains";
 import { getUnreadCountForCurrentUser } from "@/server/services/notifications";
+import { getWorkspaceContext } from "@/server/services/workspace";
 
 export default async function AppLayout({
   children,
@@ -19,14 +19,14 @@ export default async function AppLayout({
     redirect("/login");
   }
 
-  const [{ data: profile }, hasProfessionalStanding, unreadCount] = await Promise.all([
+  const [{ data: profile }, workspace, unreadCount] = await Promise.all([
     supabase.from("profiles").select("full_name, email").eq("id", user.id).single(),
-    currentUserHasProfessionalStanding(supabase),
+    getWorkspaceContext(supabase, user.id),
     getUnreadCountForCurrentUser(supabase),
   ]);
 
   return (
-    <AppShell profile={profile} showDashboard={hasProfessionalStanding} unreadCount={unreadCount}>
+    <AppShell profile={profile} workspace={workspace} unreadCount={unreadCount}>
       {children}
     </AppShell>
   );

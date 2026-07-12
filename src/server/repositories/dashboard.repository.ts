@@ -63,7 +63,13 @@ export async function listSoloChainIds(supabase: TypedClient, profileId: string)
     .select("chain_id")
     .eq("profile_id", profileId)
     .eq("status", "active")
-    .in("access_mode", ["connected", "proxy"]);
+    .in("role", [
+      "sellers_agent",
+      "buyers_agent",
+      "sellers_conveyancer",
+      "buyers_conveyancer",
+      "broker",
+    ]);
 
   if (error) throw error;
   return data.map((r) => r.chain_id);

@@ -18,10 +18,12 @@ interface NodeRow {
 export function TopologyPanel({
   chainId,
   myParticipantId,
+  readOnly,
   nodes,
 }: {
   chainId: string;
   myParticipantId: string | null;
+  readOnly: boolean;
   nodes: NodeRow[];
 }) {
   const [showForm, setShowForm] = useState(false);
@@ -84,7 +86,7 @@ export function TopologyPanel({
         ))}
       </ul>
 
-      {showForm ? (
+      {!readOnly && (showForm ? (
         <form onSubmit={handleSubmit} className="space-y-2 border-t border-border pt-4">
           <p className="text-xs text-muted-foreground">
             E.g. the seller&apos;s own onward purchase — a second property
@@ -125,7 +127,7 @@ export function TopologyPanel({
         <Button variant="outline" size="sm" onClick={() => setShowForm(true)}>
           <Plus className="h-4 w-4" /> Add linked transaction
         </Button>
-      )}
+      ))}
     </div>
   );
 }

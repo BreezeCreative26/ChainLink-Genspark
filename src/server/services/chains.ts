@@ -18,10 +18,11 @@ type TypedClient = SupabaseClient<Database, "public", Database["public"]>;
  * Works out a new participant's access_mode, per docs/PRODUCT_BRIEF.md:
  * - buyers and sellers are always 'guest' — private individuals never hold
  *   a paid firm subscription in a personal capacity.
- * - an agent is 'connected' if they belong to an active organisation,
- *   otherwise 'guest' (an agent can still use ChainLink solo, unsubscribed
- *   — proxy/guest mode must work without a firm, per the platform's core
- *   design rule).
+ * - a professional is 'connected' if they belong to an active organisation,
+ *   otherwise 'guest'. Guest-mode professionals still receive a direct-only
+ *   solo portfolio, but never firm-wide visibility. `proxy` remains reserved
+ *   for a managed stand-in participant because the database requires a proxy
+ *   manager record.
  */
 async function resolveAccessModeForCreator(
   supabase: TypedClient,
@@ -157,6 +158,45 @@ export async function listChainsForCurrentUser(supabase: TypedClient) {
       };
     })
     .filter((c): c is NonNullable<typeof c> => c !== null);
+}
+
+/**
+ * Participant-facing chain cards. These deliberately start from the viewer's
+ * own participant rows rather than the firm-wide dashboard scope: a buyer or
+ * seller must never inherit access merely because somebody else in a firm can
+ * see a chain.
+ */
+export async function listPersonalChainCards(supabase: TypedClient) {
+  const chains = await listChainsForCurrentUser(supabase);
+
+  return Promise.all(
+    chains.map(async (chain) => {
+      const [property, milestoneResult] = await Promise.all([
+        chainsRepo.getFirstPropertyAddress(supabase, chain.id),
+        supabase
+          .from("milestones")
+          .select("status")
+          .eq("chain_id", chain.id)
+          .eq("visibility", "shared"),
+      ]);
+
+      if (milestoneResult.error) throw milestoneResult.error;
+      const milestoneCount = milestoneResult.data.length;
+      const completedMilestones = milestoneResult.data.filter(
+        (milestone) => milestone.status === "completed"
+      ).length;
+
+      return {
+        ...chain,
+        addressLine1: property?.address_line1 ?? null,
+        city: property?.city ?? null,
+        progress:
+          milestoneCount === 0
+            ? 0
+            : Math.round((completedMilestones / milestoneCount) * 100),
+      };
+    })
+  );
 }
 
 export async function getChainDetail(supabase: TypedClient, chainId: string) {

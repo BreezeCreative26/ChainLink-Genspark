@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
-import { ScrollText } from "lucide-react";
+import { Eye, ScrollText } from "lucide-react";
 
 import { PageHeader } from "@/components/layout/page-header";
 import { Badge } from "@/components/ui/badge";
@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { createClient } from "@/lib/supabase/server";
 import { getChainDetail } from "@/server/services/chains";
+import { getWorkspaceContext } from "@/server/services/workspace";
 import { listInternalNotes } from "@/server/services/notes";
 import { getAllowedDocumentCategories } from "@/lib/document-access";
 import { InvitationsPanel } from "@/app/(app)/chains/[id]/invitations-panel";
@@ -75,11 +76,17 @@ export default async function ChainDetailPage({
     data: { user },
   } = await supabase.auth.getUser();
 
+  if (!user) notFound();
+
+  const workspace = await getWorkspaceContext(supabase, user.id);
   const property = chain.properties?.[0];
   const participants = chain.chain_participants ?? [];
-  const myParticipant = participants.find((p) => p.profile_id === user?.id);
+  const myParticipant = participants.find((p) => p.profile_id === user.id);
   const isGuest = myParticipant?.access_mode === "guest";
-  const myOrganisationId = myParticipant?.organisation_id ?? null;
+  const isReadOnlyObserver = !myParticipant && workspace.mode === "firm";
+  const canManageChain = Boolean(myParticipant && !isGuest);
+  const myOrganisationId =
+    myParticipant?.organisation_id ?? workspace.organisationId;
   const allowedCategories = getAllowedDocumentCategories(
     myParticipant?.access_mode ?? null,
     (myParticipant?.role as Parameters<typeof getAllowedDocumentCategories>[1]) ?? null
@@ -143,14 +150,28 @@ export default async function ChainDetailPage({
       />
 
       {isGuest && (
-        <div className="mb-4 rounded-md border border-border bg-secondary/40 px-4 py-2 text-xs text-muted-foreground">
+        <div className="mb-5 rounded-2xl border border-sky-200 bg-sky-50 px-4 py-3 text-sm text-sky-900">
           You have guest access to this one chain. You can see shared updates,
           confirm anything asked of you, comment, and upload documents you&apos;re
           asked for.
         </div>
       )}
 
-      <div className="grid gap-4 lg:grid-cols-3">
+      {isReadOnlyObserver && (
+        <div className="mb-5 flex items-start gap-3 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950">
+          <Eye className="mt-0.5 h-4 w-4 shrink-0" />
+          <div>
+            <p className="font-semibold">Firm oversight — read only</p>
+            <p className="mt-0.5 text-amber-800">
+              This chain is connected to {workspace.organisationName ?? "your firm"}
+              through a colleague. You can review shared progress and your firm&apos;s
+              internal information, but only a direct chain participant can make changes.
+            </p>
+          </div>
+        </div>
+      )}
+
+      <div className="grid gap-5 lg:grid-cols-3">
         <div className="space-y-4 lg:col-span-2">
           <Card>
             <CardHeader>
@@ -162,6 +183,7 @@ export default async function ChainDetailPage({
                 myParticipantId={myParticipant?.id ?? null}
                 myOrganisationId={myOrganisationId}
                 isGuest={isGuest}
+                readOnly={isReadOnlyObserver}
                 milestones={milestones}
               />
             </CardContent>
@@ -176,6 +198,7 @@ export default async function ChainDetailPage({
                 <TopologyPanel
                   chainId={chain.id}
                   myParticipantId={myParticipant?.id ?? null}
+                  readOnly={isReadOnlyObserver}
                   nodes={nodeRows}
                 />
               </CardContent>
@@ -192,6 +215,7 @@ export default async function ChainDetailPage({
                   chainId={chain.id}
                   myParticipantId={myParticipant?.id ?? null}
                   myOrganisationId={myOrganisationId}
+                  readOnly={isReadOnlyObserver}
                   tasks={tasks}
                 />
               </CardContent>
@@ -206,6 +230,7 @@ export default async function ChainDetailPage({
               <CommentsPanel
                 chainId={chain.id}
                 myParticipantId={myParticipant?.id ?? null}
+                readOnly={isReadOnlyObserver}
                 comments={commentRows}
               />
             </CardContent>
@@ -221,6 +246,7 @@ export default async function ChainDetailPage({
                   chainId={chain.id}
                   organisationId={myOrganisationId}
                   myParticipantId={myParticipant?.id ?? null}
+                  readOnly={isReadOnlyObserver}
                   notes={internalNoteRows}
                 />
               </CardContent>
@@ -237,6 +263,7 @@ export default async function ChainDetailPage({
                 myParticipantId={myParticipant?.id ?? null}
                 myAccessMode={myParticipant?.access_mode ?? null}
                 myOrganisationId={myOrganisationId}
+                readOnly={isReadOnlyObserver}
                 documents={documents}
                 allowedCategories={allowedCategories}
               />
@@ -322,7 +349,7 @@ export default async function ChainDetailPage({
                 </ul>
               )}
 
-              {!isGuest && myParticipant && (
+              {canManageChain && myParticipant && (
                 <AddProxyParticipantForm
                   chainId={chain.id}
                   managerParticipantId={myParticipant.id}
@@ -340,6 +367,7 @@ export default async function ChainDetailPage({
                 <InvitationsPanel
                   chainId={chain.id}
                   myParticipantId={myParticipant?.id ?? null}
+                  readOnly={isReadOnlyObserver}
                   invitations={invitations}
                 />
               </CardContent>

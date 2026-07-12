@@ -36,12 +36,14 @@ export function MilestonesPanel({
   myParticipantId,
   myOrganisationId,
   isGuest,
+  readOnly,
   milestones,
 }: {
   chainId: string;
   myParticipantId: string | null;
   myOrganisationId: string | null;
   isGuest: boolean;
+  readOnly: boolean;
   milestones: MilestoneRow[];
 }) {
   const [isPending, startTransition] = useTransition();
@@ -142,7 +144,7 @@ export function MilestonesPanel({
                   <Button size="sm" variant="outline" disabled={isPending} onClick={() => handleConfirm(m)}>
                     Confirm
                   </Button>
-                ) : isGuest ? (
+                ) : isGuest || readOnly ? (
                   <span className="text-xs capitalize text-muted-foreground">
                     {m.status.replace("_", " ")}
                   </span>
@@ -166,7 +168,7 @@ export function MilestonesPanel({
         </ul>
       )}
 
-      {!isGuest &&
+      {!isGuest && !readOnly &&
         (showForm ? (
           <form onSubmit={handleCreate} className="space-y-2 border-t border-border pt-4">
             <Input
