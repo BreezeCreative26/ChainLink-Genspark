@@ -1,7 +1,6 @@
 import { createBrowserClient } from "@supabase/ssr";
 
 import type { Database } from "@/types/database";
-import { requireEnv } from "@/lib/env";
 
 /**
  * Supabase client for use in Client Components. Reads the public URL/anon
@@ -9,8 +8,16 @@ import { requireEnv } from "@/lib/env";
  * actually enforces access, not this key.
  */
 export function createClient() {
-  return createBrowserClient<Database>(
-    requireEnv("NEXT_PUBLIC_SUPABASE_URL"),
-    requireEnv("NEXT_PUBLIC_SUPABASE_ANON_KEY")
-  );
+  // Next.js only exposes NEXT_PUBLIC_* values to browser bundles when they are
+  // referenced statically. Do not replace these with process.env[name].
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim();
+  const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY?.trim();
+
+  if (!supabaseUrl || !anonKey) {
+    throw new Error(
+      "Supabase browser configuration is unavailable. Check the Vercel environment variables and redeploy."
+    );
+  }
+
+  return createBrowserClient<Database>(supabaseUrl, anonKey);
 }

@@ -5,7 +5,7 @@
  * the actual cause.
  */
 export function requireEnv(name: string): string {
-  const value = process.env[name];
+  const value = process.env[name]?.trim();
   if (!value) {
     throw new Error(
       `Missing required environment variable: ${name}. Check .env.local against .env.example and the Vercel project environment variables.`
@@ -22,7 +22,7 @@ export function requireEnv(name: string): string {
  */
 export function isSupabaseConfigured(): boolean {
   return Boolean(
-    process.env.NEXT_PUBLIC_SUPABASE_URL &&
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+    process.env.NEXT_PUBLIC_SUPABASE_URL?.trim() &&
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY?.trim()
   );
 }
