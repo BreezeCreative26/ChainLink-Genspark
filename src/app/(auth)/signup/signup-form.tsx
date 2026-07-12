@@ -2,16 +2,21 @@
 
 import { useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import { Building2, UserRound } from "lucide-react";
 
 import { createClient } from "@/lib/supabase/client";
+import { safeRedirectPath } from "@/lib/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
 export function SignupForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const redirectTo = searchParams.get("redirect") || "/dashboard";
+  const redirectTo = safeRedirectPath(searchParams.get("redirect"), "/chains");
 
+  const [accountType, setAccountType] = useState<"professional" | "participant">(
+    "professional"
+  );
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -24,30 +29,31 @@ export function SignupForm() {
     setError(null);
     setLoading(true);
 
-    const supabase = createClient();
-    const { data, error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: { data: { full_name: fullName } },
-    });
+    try {
+      const supabase = createClient();
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: { data: { full_name: fullName, account_type: accountType } },
+      });
 
-    setLoading(false);
+      if (error) {
+        setError(error.message);
+        return;
+      }
 
-    if (error) {
-      setError(error.message);
-      return;
-    }
-
-    // If the Supabase project requires email confirmation, no session
-    // exists yet — signUp only returns one immediately when confirmation is
-    // disabled (typical for local/dev setups). Either way, the profiles row
-    // is created by the handle_new_auth_user trigger regardless of
-    // confirmation status.
-    if (data.session) {
-      router.push(redirectTo);
-      router.refresh();
-    } else {
-      setNeedsConfirmation(true);
+      // If the Supabase project requires email confirmation, no session
+      // exists yet. The profile trigger still creates the application record.
+      if (data.session) {
+        router.push(redirectTo);
+        router.refresh();
+      } else {
+        setNeedsConfirmation(true);
+      }
+    } catch {
+      setError("Account creation is temporarily unavailable. Please try again shortly.");
+    } finally {
+      setLoading(false);
     }
   }
 
@@ -62,6 +68,43 @@ export function SignupForm() {
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
+      <fieldset className="space-y-2">
+        <legend className="text-sm font-medium text-foreground">I&apos;m joining as</legend>
+        <div className="grid grid-cols-2 gap-2">
+          <button
+            type="button"
+            aria-pressed={accountType === "professional"}
+            onClick={() => setAccountType("professional")}
+            className={`rounded-lg border p-3 text-left transition-colors ${
+              accountType === "professional"
+                ? "border-primary bg-accent text-accent-foreground"
+                : "border-input bg-background hover:bg-secondary"
+            }`}
+          >
+            <Building2 className="mb-2 h-4 w-4" />
+            <span className="block text-xs font-semibold">Professional</span>
+            <span className="mt-0.5 block text-[11px] text-muted-foreground">
+              Agent or conveyancer
+            </span>
+          </button>
+          <button
+            type="button"
+            aria-pressed={accountType === "participant"}
+            onClick={() => setAccountType("participant")}
+            className={`rounded-lg border p-3 text-left transition-colors ${
+              accountType === "participant"
+                ? "border-primary bg-accent text-accent-foreground"
+                : "border-input bg-background hover:bg-secondary"
+            }`}
+          >
+            <UserRound className="mb-2 h-4 w-4" />
+            <span className="block text-xs font-semibold">Buyer or seller</span>
+            <span className="mt-0.5 block text-[11px] text-muted-foreground">
+              Joining a single chain
+            </span>
+          </button>
+        </div>
+      </fieldset>
       <div className="space-y-2">
         <label htmlFor="fullName" className="text-sm font-medium text-foreground">
           Full name

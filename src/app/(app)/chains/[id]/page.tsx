@@ -145,7 +145,7 @@ export default async function ChainDetailPage({
       {isGuest && (
         <div className="mb-4 rounded-md border border-border bg-secondary/40 px-4 py-2 text-xs text-muted-foreground">
           You have guest access to this one chain. You can see shared updates,
-          confirm anything asked of you, comment, and upload documents you're
+          confirm anything asked of you, comment, and upload documents you&apos;re
           asked for.
         </div>
       )}

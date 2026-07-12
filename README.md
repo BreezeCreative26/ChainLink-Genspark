@@ -140,3 +140,63 @@ After running `supabase/seed.sql`:
 | `NEXT_PUBLIC_APP_URL` | ✅ | Base URL for invite links & auth redirects |
 | `STRIPE_SECRET_KEY` | ⏳ | Stripe secret key (Phase 4 — not yet active) |
 | `STRIPE_WEBHOOK_SECRET` | ⏳ | Stripe webhook secret (Phase 4 — not yet active) |
+
+## Current Application Routes
+
+| Route | Access | Purpose |
+|-------|--------|---------|
+| `/` | Public | Product overview and live workspace preview |
+| `/signup` | Public | Role-aware account creation for professionals and participants |
+| `/login` | Public | Secure account access |
+| `/api/health` | Public | Vercel/runtime configuration health check; exposes status only, never secrets |
+| `/chains` | Authenticated | Chains available to the current participant |
+| `/chains/new` | Authenticated | Create a proxy-mode chain workspace |
+| `/chains/[id]` | Authorised participant | Chain milestones, topology, tasks, notes, documents, invites and activity |
+| `/dashboard` | Authenticated professional | Firm/solo caseload, workload, risk and completion overview |
+| `/notifications` | Authenticated | Participant notifications |
+| `/settings/organisation` | Authenticated professional | Organisation and team administration |
+| `/settings/billing` | Authenticated professional | Plan and usage overview |
+
+## Deployment Status
+
+- **Platform:** Vercel (Next.js preset)
+- **Source delivery:** GitHub-connected deployment
+- **Install:** deterministic `npm ci` from the committed lockfile
+- **Runtime:** Node.js 18.17–22
+- **Health:** `GET /api/health`
+- **Required Vercel variables:** `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `NEXT_PUBLIC_APP_URL`
+
+A deployment without the two public Supabase variables now keeps the website,
+login and signup routes online and shows an actionable configuration notice. It
+no longer returns an opaque server-side exception when a visitor clicks **Get
+started**. Add the variables to all required Vercel environments (Production,
+Preview and Development), then redeploy to activate authentication.
+
+## Completed in the Current Product Pass
+
+- Rebuilt the public experience around ChainLink's whole-chain value proposition
+- Added a detailed product workspace preview, access-mode explanation and security story
+- Redesigned login and signup as responsive, professional product surfaces
+- Added professional vs buyer/seller account intent during signup
+- Added safe local-only post-auth redirect handling
+- Added graceful handling for incomplete Vercel/Supabase configuration
+- Added a non-secret health endpoint for deployment checks
+- Restored strict TypeScript validation and removed stale Hono scaffold files
+- Pinned compatible Supabase packages and upgraded Next.js within the 14.2 release line
+
+## Not Yet Implemented
+
+- Transactional invite emails (provider integration required)
+- Live Stripe checkout and webhook processing
+- Automated CRM/conveyancing system integrations
+- Enterprise SSO and audit export
+- Computed risk rules beyond the current milestone/activity signals
+
+## Recommended Next Steps
+
+1. Configure the required Supabase variables in Vercel and confirm `/api/health` returns `status: ok`.
+2. Apply all migrations in `supabase/migrations/` to the production Supabase project.
+3. Configure Supabase Auth redirect URLs for the production and preview Vercel domains.
+4. Run an end-to-end production test: signup → create chain → add transaction → invite participant.
+5. Add email delivery for invitations and account lifecycle messages.
+6. Schedule the next major framework/Supabase upgrade to remove remaining dependency audit findings.

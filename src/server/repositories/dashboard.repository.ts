@@ -7,12 +7,23 @@ type TypedClient = SupabaseClient<Database, "public", Database["public"]>;
 export async function getActiveMemberships(supabase: TypedClient, profileId: string) {
   const { data, error } = await supabase
     .from("memberships")
-    .select("organisation_id, branch_id, role, organisations ( name )")
+    .select("organisation_id, branch_id, role")
     .eq("profile_id", profileId)
     .eq("status", "active");
 
   if (error) throw error;
   return data;
+}
+
+export async function getOrganisationName(supabase: TypedClient, organisationId: string) {
+  const { data, error } = await supabase
+    .from("organisations")
+    .select("name")
+    .eq("id", organisationId)
+    .maybeSingle();
+
+  if (error) throw error;
+  return data?.name ?? null;
 }
 
 export async function getBranchesForOrganisation(supabase: TypedClient, organisationId: string) {

@@ -4,13 +4,14 @@ import { useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 
 import { createClient } from "@/lib/supabase/client";
+import { safeRedirectPath } from "@/lib/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
 export function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const redirectTo = searchParams.get("redirect") || "/dashboard";
+  const redirectTo = safeRedirectPath(searchParams.get("redirect"), "/dashboard");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -21,18 +22,22 @@ export function LoginForm() {
     setError(null);
     setLoading(true);
 
-    const supabase = createClient();
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    try {
+      const supabase = createClient();
+      const { error } = await supabase.auth.signInWithPassword({ email, password });
 
-    setLoading(false);
+      if (error) {
+        setError(error.message);
+        return;
+      }
 
-    if (error) {
-      setError(error.message);
-      return;
+      router.push(redirectTo);
+      router.refresh();
+    } catch {
+      setError("Account access is temporarily unavailable. Please try again shortly.");
+    } finally {
+      setLoading(false);
     }
-
-    router.push(redirectTo);
-    router.refresh();
   }
 
   return (
@@ -70,9 +75,9 @@ export function LoginForm() {
         {loading ? "Logging in…" : "Log in"}
       </Button>
 
-      <p className="text-center text-xs text-muted-foreground">
-        Try the seeded demo account: jordan.blake@blakeco.example /
-        password123
+      <p className="text-center text-xs leading-5 text-muted-foreground">
+        Your account is protected by secure, role-based access. Need help? Contact
+        your ChainLink workspace administrator.
       </p>
     </form>
   );

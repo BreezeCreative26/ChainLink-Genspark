@@ -11,43 +11,54 @@ import {
   CardFooter,
 } from "@/components/ui/card";
 import { createClient } from "@/lib/supabase/server";
+import { isSupabaseConfigured } from "@/lib/env";
+import { safeRedirectPath } from "@/lib/navigation";
 import { LoginForm } from "@/app/(auth)/login/login-form";
+import { AuthConfigurationNotice } from "@/components/auth/auth-configuration-notice";
 
 export default async function LoginPage({
   searchParams,
 }: {
   searchParams: { redirect?: string };
 }) {
-  const supabase = createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const configured = isSupabaseConfigured();
 
-  // Already signed in — honour ?redirect= (e.g. an invite link) if
-  // present, otherwise send them somewhere useful rather than re-showing
-  // the login form.
-  if (user) {
-    redirect(searchParams.redirect || "/chains");
+  if (configured) {
+    const supabase = createClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    // Already signed in — honour local ?redirect= paths (e.g. an invite
+    // link), but never allow an external open redirect.
+    if (user) {
+      redirect(safeRedirectPath(searchParams.redirect, "/chains"));
+    }
   }
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Log in to ChainLink</CardTitle>
+    <Card className="rounded-2xl border-slate-200 bg-white shadow-[0_24px_70px_-30px_rgba(15,45,51,0.35)]">
+      <CardHeader className="p-7 pb-5 sm:p-8 sm:pb-5">
+        <p className="text-xs font-semibold uppercase tracking-[0.14em] text-primary">Welcome back</p>
+        <CardTitle className="font-display text-3xl font-semibold tracking-tight">Log in to ChainLink</CardTitle>
         <CardDescription>
           Access your chains and, if connected, your firm&apos;s dashboard.
         </CardDescription>
       </CardHeader>
-      <CardContent>
-        <Suspense>
-          <LoginForm />
-        </Suspense>
+      <CardContent className="px-7 sm:px-8">
+        {configured ? (
+          <Suspense>
+            <LoginForm />
+          </Suspense>
+        ) : (
+          <AuthConfigurationNotice />
+        )}
       </CardContent>
-      <CardFooter className="justify-center">
+      <CardFooter className="justify-center px-7 pb-7 sm:px-8 sm:pb-8">
         <p className="text-sm text-muted-foreground">
-          Invited to a chain?{" "}
-          <Link href="/" className="font-medium text-primary hover:underline">
-            Use your invite link instead
+          New to ChainLink?{" "}
+          <Link href="/signup" className="font-medium text-primary hover:underline">
+            Create an account
           </Link>
         </p>
       </CardFooter>

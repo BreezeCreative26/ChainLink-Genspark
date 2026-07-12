@@ -120,13 +120,14 @@ export async function checkInvitationForCurrentUser(
     invitation.role
   );
 
+  const organisationName = membership
+    ? await invitationsRepo.getOrganisationName(supabase, membership.organisation_id)
+    : null;
+
   const accountMatch: AccountMatch | null = membership
     ? {
         organisationId: membership.organisation_id,
-        organisationName:
-          (Array.isArray(membership.organisations)
-            ? membership.organisations[0]?.name
-            : membership.organisations?.name) ?? "your firm",
+        organisationName: organisationName ?? "your firm",
       }
     : null;
 

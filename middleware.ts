@@ -1,7 +1,7 @@
 import { createServerClient, type CookieOptions } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
-import { requireEnv } from "@/lib/env";
+import { isSupabaseConfigured, requireEnv } from "@/lib/env";
 
 /**
  * Refreshes the Supabase auth session on every request. Required so a
@@ -11,6 +11,13 @@ import { requireEnv } from "@/lib/env";
  */
 export async function middleware(request: NextRequest) {
   let response = NextResponse.next({ request: { headers: request.headers } });
+
+  // Keep marketing and auth pages renderable on a newly imported Vercel
+  // project. Protected pages still fail closed in their server layout until
+  // the Supabase variables are configured.
+  if (!isSupabaseConfigured()) {
+    return response;
+  }
 
   const supabase = createServerClient(
     requireEnv("NEXT_PUBLIC_SUPABASE_URL"),
@@ -38,5 +45,5 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/((?!_next/static|_next/image|favicon.ico).*)"],
+  matcher: ["/((?!_next/static|_next/image|favicon.ico|api/health).*)"],
 };

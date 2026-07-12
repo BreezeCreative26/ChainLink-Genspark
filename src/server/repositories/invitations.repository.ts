@@ -104,7 +104,7 @@ export async function findActiveMembershipMatchingRole(
 
   const { data, error } = await supabase
     .from("memberships")
-    .select("organisation_id, organisations ( name )")
+    .select("organisation_id")
     .eq("profile_id", profileId)
     .eq("status", "active")
     .in("role", relevantMembershipRoles as unknown as string[])
@@ -113,6 +113,17 @@ export async function findActiveMembershipMatchingRole(
 
   if (error) throw error;
   return data;
+}
+
+export async function getOrganisationName(supabase: TypedClient, organisationId: string) {
+  const { data, error } = await supabase
+    .from("organisations")
+    .select("name")
+    .eq("id", organisationId)
+    .maybeSingle();
+
+  if (error) throw error;
+  return data?.name ?? null;
 }
 
 export async function getInviterProfileId(supabase: TypedClient, participantId: string) {

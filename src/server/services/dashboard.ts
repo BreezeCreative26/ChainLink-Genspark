@@ -80,11 +80,8 @@ export async function resolveDashboardScope(
     };
   }
 
-  const organisationName = Array.isArray(membership.organisations)
-    ? membership.organisations[0]?.name
-    : membership.organisations?.name;
-
-  const [branches, connectedParticipants, orgBillingRow] = await Promise.all([
+  const [organisationName, branches, connectedParticipants, orgBillingRow] = await Promise.all([
+    dashboardRepo.getOrganisationName(supabase, membership.organisation_id),
     dashboardRepo.getBranchesForOrganisation(supabase, membership.organisation_id),
     dashboardRepo.listOrgConnectedChainParticipants(supabase, membership.organisation_id),
     billingRepo.getOrganisationBillingRow(supabase, membership.organisation_id),
