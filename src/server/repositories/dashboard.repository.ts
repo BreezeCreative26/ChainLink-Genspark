@@ -2,7 +2,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 
 import type { Database } from "@/types/database";
 
-type TypedClient = SupabaseClient<Database>;
+type TypedClient = SupabaseClient<Database, "public", Database["public"]>;
 
 export async function getActiveMemberships(supabase: TypedClient, profileId: string) {
   const { data, error } = await supabase

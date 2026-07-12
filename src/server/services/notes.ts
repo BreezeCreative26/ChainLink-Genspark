@@ -4,7 +4,7 @@ import type { Database } from "@/types/database";
 import * as notesRepo from "@/server/repositories/notes.repository";
 import * as chainsRepo from "@/server/repositories/chains.repository";
 
-type TypedClient = SupabaseClient<Database>;
+type TypedClient = SupabaseClient<Database, "public", Database["public"]>;
 
 export async function listComments(supabase: TypedClient, chainId: string) {
   return notesRepo.listSharedNotesForChain(supabase, chainId);

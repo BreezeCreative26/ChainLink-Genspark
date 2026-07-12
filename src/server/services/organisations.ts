@@ -5,7 +5,7 @@ import { AppError } from "@/lib/errors";
 import * as orgRepo from "@/server/repositories/organisations.repository";
 import * as dashboardRepo from "@/server/repositories/dashboard.repository";
 
-type TypedClient = SupabaseClient<Database>;
+type TypedClient = SupabaseClient<Database, "public", Database["public"]>;
 
 /**
  * Creates a new organisation and makes the current user its owner.

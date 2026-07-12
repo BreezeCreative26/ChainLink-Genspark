@@ -7,7 +7,7 @@ import type { DocumentCategory } from "@/types/chain";
 import * as documentsRepo from "@/server/repositories/documents.repository";
 import * as chainsRepo from "@/server/repositories/chains.repository";
 
-type TypedClient = SupabaseClient<Database>;
+type TypedClient = SupabaseClient<Database, "public", Database["public"]>;
 
 export async function listDocuments(supabase: TypedClient, chainId: string) {
   return documentsRepo.listDocumentsForChain(supabase, chainId);

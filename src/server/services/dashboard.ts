@@ -16,7 +16,7 @@ import * as dashboardRepo from "@/server/repositories/dashboard.repository";
 import * as billingRepo from "@/server/repositories/billing.repository";
 import { hasFeature } from "@/config/plans";
 
-type TypedClient = SupabaseClient<Database>;
+type TypedClient = SupabaseClient<Database, "public", Database["public"]>;
 
 const RISK_INACTIVITY_DAYS = 14;
 

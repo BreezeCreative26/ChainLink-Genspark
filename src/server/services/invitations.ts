@@ -11,7 +11,7 @@ import type {
 import * as invitationsRepo from "@/server/repositories/invitations.repository";
 import * as chainsRepo from "@/server/repositories/chains.repository";
 
-type TypedClient = SupabaseClient<Database>;
+type TypedClient = SupabaseClient<Database, "public", Database["public"]>;
 
 /**
  * Sends a chain invitation and records the audit trail entry for it.

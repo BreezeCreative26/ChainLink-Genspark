@@ -6,7 +6,7 @@ import { AppError } from "@/lib/errors";
 import { createAdminClient } from "@/lib/supabase/admin";
 import * as chainsRepo from "@/server/repositories/chains.repository";
 
-type TypedClient = SupabaseClient<Database>;
+type TypedClient = SupabaseClient<Database, "public", Database["public"]>;
 
 /**
  * Adds a participant who will never log in themselves — e.g. a seller

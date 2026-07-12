@@ -12,7 +12,7 @@ import { listDocuments } from "@/server/services/documents";
 import { listComments } from "@/server/services/notes";
 import { listTasks } from "@/server/services/tasks";
 
-type TypedClient = SupabaseClient<Database>;
+type TypedClient = SupabaseClient<Database, "public", Database["public"]>;
 
 /**
  * Works out a new participant's access_mode, per docs/PRODUCT_BRIEF.md:

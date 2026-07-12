@@ -71,7 +71,7 @@ export default async function BillingSettingsPage() {
 
   const { billing, usage } = overview;
   const currentPlan = PLANS[billing.plan];
-  const status = STATUS_LABELS[billing.subscriptionStatus];
+  const status = STATUS_LABELS[billing.subscriptionStatus] ?? { label: billing.subscriptionStatus, variant: "secondary" as const };
   const isAdmin = billing.viewerRole === "owner" || billing.viewerRole === "admin";
 
   return (

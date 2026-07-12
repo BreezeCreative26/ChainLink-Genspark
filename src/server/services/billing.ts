@@ -6,7 +6,7 @@ import { PLANS, hasFeature, type FeatureKey } from "@/config/plans";
 import * as billingRepo from "@/server/repositories/billing.repository";
 import * as dashboardRepo from "@/server/repositories/dashboard.repository";
 
-type TypedClient = SupabaseClient<Database>;
+type TypedClient = SupabaseClient<Database, "public", Database["public"]>;
 
 /**
  * Returns null if the user has no active organisation membership — billing

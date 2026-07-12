@@ -4,7 +4,7 @@ import type { Database } from "@/types/database";
 import * as tasksRepo from "@/server/repositories/tasks.repository";
 import * as chainsRepo from "@/server/repositories/chains.repository";
 
-type TypedClient = SupabaseClient<Database>;
+type TypedClient = SupabaseClient<Database, "public", Database["public"]>;
 
 export async function listTasks(supabase: TypedClient, chainId: string) {
   return tasksRepo.listTasksForChain(supabase, chainId);
