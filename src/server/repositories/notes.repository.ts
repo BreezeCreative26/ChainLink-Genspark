@@ -15,7 +15,7 @@ export async function listSharedNotesForChain(supabase: TypedClient, chainId: st
   const { data, error } = await supabase
     .from("notes")
     .select(
-      "id, body, created_at, created_by_participant_id, chain_participants ( role, profiles ( full_name, email ) )"
+      "id, body, created_at, created_by_participant_id, chain_participants!notes_created_by_participant_id_fkey ( role, profiles ( full_name, email ) )"
     )
     .eq("chain_id", chainId)
     .eq("visibility", "shared")
@@ -59,7 +59,7 @@ export async function listInternalNotesForChain(
   const { data, error } = await supabase
     .from("notes")
     .select(
-      "id, body, created_at, created_by_participant_id, chain_participants ( role, profiles ( full_name, email ) )"
+      "id, body, created_at, created_by_participant_id, chain_participants!notes_created_by_participant_id_fkey ( role, profiles ( full_name, email ) )"
     )
     .eq("chain_id", chainId)
     .eq("visibility", "internal")
