@@ -211,26 +211,24 @@ export default async function ChainDetailPage({
 
       <div className="grid gap-5 lg:grid-cols-3">
         <div className="space-y-4 lg:col-span-2">
-          {!isGuest && (
-            <Card>
-              <CardHeader>
-                <CardTitle>Full chain progress</CardTitle>
-                <p className="text-sm text-muted-foreground">
-                  See every customer transaction, its current stage, and where the chain is being held up.
-                </p>
-              </CardHeader>
-              <CardContent>
-                <TopologyPanel
-                  chainId={chain.id}
-                  myParticipantId={myParticipant?.id ?? null}
-                  readOnly={isReadOnlyObserver}
-                  nodes={nodeRows}
-                  participants={participantRows}
-                  milestones={milestoneRows}
-                />
-              </CardContent>
-            </Card>
-          )}
+          <Card>
+            <CardHeader>
+              <CardTitle>Full chain progress</CardTitle>
+              <p className="text-sm text-muted-foreground">
+                See every customer transaction, its current stage, and where the chain is being held up.
+              </p>
+            </CardHeader>
+            <CardContent>
+              <TopologyPanel
+                chainId={chain.id}
+                myParticipantId={myParticipant?.id ?? null}
+                readOnly={isReadOnlyObserver || isGuest}
+                nodes={nodeRows}
+                participants={participantRows}
+                milestones={milestoneRows}
+              />
+            </CardContent>
+          </Card>
 
           <Card>
             <CardHeader>
