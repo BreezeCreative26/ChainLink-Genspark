@@ -5,7 +5,10 @@ import {
   ArrowDown,
   ArrowRight,
   Check,
+  CheckCircle2,
+  Circle,
   CircleAlert,
+  Clock3,
   Home,
   Link2,
   Plus,
@@ -38,6 +41,17 @@ interface ParticipantRow {
   role: string;
   accessMode: string;
   isCurrentUser: boolean;
+}
+
+interface ProgressMilestone {
+  id: string;
+  chainNodeId: string | null;
+  title: string;
+  status: "pending" | "in_progress" | "completed" | "blocked";
+  dueDate: string | null;
+  completedAt: string | null;
+  sequenceIndex: number | null;
+  createdAt: string;
 }
 
 const ROLE_LABELS: Record<string, string> = {
@@ -82,12 +96,14 @@ export function TopologyPanel({
   readOnly,
   nodes,
   participants,
+  milestones,
 }: {
   chainId: string;
   myParticipantId: string | null;
   readOnly: boolean;
   nodes: NodeRow[];
   participants: ParticipantRow[];
+  milestones: ProgressMilestone[];
 }) {
   const [showForm, setShowForm] = useState(false);
   const [addressLine1, setAddressLine1] = useState("");
@@ -188,7 +204,13 @@ export function TopologyPanel({
         </span>
       </div>
 
-      <div>
+      <ChainProgressBoard
+        nodes={orderedNodes}
+        participants={participants}
+        milestones={milestones}
+      />
+
+      <div className="border-t border-border pt-5">
         <div className="mb-3 flex items-center justify-between gap-3">
           <div>
             <h3 className="text-sm font-semibold text-foreground">People in this chain</h3>
@@ -390,6 +412,371 @@ export function TopologyPanel({
       )}
     </section>
   );
+}
+
+function ChainProgressBoard({
+  nodes,
+  participants,
+  milestones,
+}: {
+  nodes: NodeRow[];
+  participants: ParticipantRow[];
+  milestones: ProgressMilestone[];
+}) {
+  const stages = useMemo(() => {
+    const byTitle = new Map<
+      string,
+      { title: string; sequenceIndex: number; createdAt: string }
+    >();
+
+    for (const milestone of milestones) {
+      const existing = byTitle.get(milestone.title);
+      const sequenceIndex = milestone.sequenceIndex ?? 10_000;
+      if (!existing || sequenceIndex < existing.sequenceIndex) {
+        byTitle.set(milestone.title, {
+          title: milestone.title,
+          sequenceIndex,
+          createdAt: milestone.createdAt,
+        });
+      }
+    }
+
+    return [...byTitle.values()].sort(
+      (a, b) =>
+        a.sequenceIndex - b.sequenceIndex ||
+        a.createdAt.localeCompare(b.createdAt) ||
+        a.title.localeCompare(b.title)
+    );
+  }, [milestones]);
+
+  function participantForNodeSide(node: NodeRow, side: "seller" | "buyer") {
+    const participantId =
+      side === "seller" ? node.sellerParticipantId : node.buyerParticipantId;
+    const explicit = participants.find((participant) => participant.id === participantId);
+    if (explicit) return explicit;
+
+    if (nodes.length === 1) {
+      const matches = participants.filter((participant) => participant.role === side);
+      if (matches.length === 1) return matches[0];
+    }
+
+    return undefined;
+  }
+
+  function milestoneFor(nodeId: string, title: string) {
+    return milestones.find(
+      (milestone) => milestone.chainNodeId === nodeId && milestone.title === title
+    ) ?? milestones.find(
+      (milestone) => milestone.chainNodeId === null && milestone.title === title
+    );
+  }
+
+  const totalSteps = nodes.length * stages.length;
+  const completedSteps = nodes.reduce(
+    (total, node) =>
+      total +
+      stages.filter(
+        (stage) => milestoneFor(node.id, stage.title)?.status === "completed"
+      ).length,
+    0
+  );
+  const blockedSteps = nodes.reduce(
+    (total, node) =>
+      total +
+      stages.filter(
+        (stage) => milestoneFor(node.id, stage.title)?.status === "blocked"
+      ).length,
+    0
+  );
+  const overallProgress =
+    totalSteps === 0 ? 0 : Math.round((completedSteps / totalSteps) * 100);
+
+  if (nodes.length === 0 || stages.length === 0) {
+    return (
+      <section aria-labelledby="customer-progress-title">
+        <div className="mb-3">
+          <h3 id="customer-progress-title" className="text-sm font-semibold text-foreground">
+            Customer progress
+          </h3>
+          <p className="mt-0.5 text-xs text-muted-foreground">
+            Each row will show one transaction moving through every conveyancing stage.
+          </p>
+        </div>
+        <div className="rounded-xl border border-dashed border-border bg-muted/30 px-4 py-6 text-center">
+          <p className="text-sm font-medium text-foreground">
+            {nodes.length === 0 ? "No customer transactions yet" : "No progress stages set up yet"}
+          </p>
+          <p className="mt-1 text-xs text-muted-foreground">
+            Add a property transaction and milestones to build the full-chain view.
+          </p>
+        </div>
+      </section>
+    );
+  }
+
+  return (
+    <section aria-labelledby="customer-progress-title" className="space-y-4">
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <h3 id="customer-progress-title" className="text-sm font-semibold text-foreground">
+            Customer progress
+          </h3>
+          <p className="mt-0.5 text-xs text-muted-foreground">
+            One row per customer transaction. Read from left to right to see the complete chain.
+          </p>
+        </div>
+        <div className="text-right">
+          <p className="text-2xl font-semibold tracking-tight text-foreground">{overallProgress}%</p>
+          <p className="text-[11px] text-muted-foreground">
+            {completedSteps} of {totalSteps} steps complete
+          </p>
+        </div>
+      </div>
+
+      <div
+        className="h-2 overflow-hidden rounded-full bg-secondary"
+        role="progressbar"
+        aria-label="Overall chain progress"
+        aria-valuemin={0}
+        aria-valuemax={100}
+        aria-valuenow={overallProgress}
+      >
+        <div
+          className="h-full rounded-full bg-primary transition-all"
+          style={{ width: `${overallProgress}%` }}
+        />
+      </div>
+
+      {blockedSteps > 0 && (
+        <div className="flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-800">
+          <CircleAlert className="h-4 w-4 shrink-0" />
+          {blockedSteps} {blockedSteps === 1 ? "step is" : "steps are"} currently blocking the chain.
+        </div>
+      )}
+
+      <div className="space-y-3 sm:hidden">
+        {nodes.map((node, nodeIndex) => {
+          const seller = participantForNodeSide(node, "seller");
+          const buyer = participantForNodeSide(node, "buyer");
+          const nodeMilestones = stages.map((stage) => ({
+            stage,
+            milestone: milestoneFor(node.id, stage.title),
+          }));
+          const current =
+            nodeMilestones.find(({ milestone }) => milestone?.status === "blocked") ??
+            nodeMilestones.find(({ milestone }) => milestone?.status === "in_progress") ??
+            nodeMilestones.find(({ milestone }) => milestone?.status !== "completed") ??
+            nodeMilestones[nodeMilestones.length - 1];
+          const nodeComplete = nodeMilestones.filter(
+            ({ milestone }) => milestone?.status === "completed"
+          ).length;
+          const nodeProgress = Math.round((nodeComplete / stages.length) * 100);
+
+          return (
+            <article key={node.id} className="rounded-xl border border-border bg-card p-4 shadow-sm">
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+                    Customer {nodeIndex + 1}
+                  </p>
+                  <p className="mt-0.5 truncate text-sm font-semibold text-foreground">
+                    {seller?.name ?? "Seller not assigned"}
+                    <span className="mx-1 text-muted-foreground">→</span>
+                    {buyer?.name ?? "Buyer not assigned"}
+                  </p>
+                  <p className="mt-0.5 truncate text-xs text-muted-foreground">{node.address}</p>
+                </div>
+                <Badge variant={nodeProgress === 100 ? "success" : "outline"}>
+                  {nodeProgress}%
+                </Badge>
+              </div>
+
+              <div className="mt-4 flex items-center gap-1" aria-label={`${nodeProgress}% complete`}>
+                {nodeMilestones.map(({ stage, milestone }) => (
+                  <span
+                    key={stage.title}
+                    title={`${stage.title}: ${progressStatusLabel(milestone?.status)}`}
+                    className={cn(
+                      "h-2 flex-1 rounded-full",
+                      progressStatusClass(milestone?.status, "bar")
+                    )}
+                  />
+                ))}
+              </div>
+
+              <div className="mt-3 rounded-lg bg-muted/50 px-3 py-2.5">
+                <p className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+                  {current?.milestone?.status === "blocked" ? "Blocked at" : "Current stage"}
+                </p>
+                <p className="mt-0.5 text-sm font-medium text-foreground">
+                  {nodeProgress === 100 ? "All stages complete" : current?.stage.title ?? "Not started"}
+                </p>
+                {current?.milestone?.dueDate && (
+                  <p className="mt-0.5 text-xs text-muted-foreground">
+                    Due {formatDueDate(current.milestone.dueDate)}
+                  </p>
+                )}
+              </div>
+            </article>
+          );
+        })}
+      </div>
+
+      <div className="hidden overflow-x-auto rounded-xl border border-border sm:block">
+        <div
+          className="grid min-w-max bg-card"
+          style={{
+            gridTemplateColumns: `minmax(240px, 1.4fr) repeat(${stages.length}, minmax(155px, 1fr))`,
+            minWidth: `${240 + stages.length * 155}px`,
+          }}
+        >
+          <div className="sticky left-0 z-20 border-b border-r border-border bg-muted px-4 py-3">
+            <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+              Customer / property
+            </span>
+          </div>
+          {stages.map((stage, index) => (
+            <div key={stage.title} className="border-b border-r border-border bg-muted px-3 py-3 last:border-r-0">
+              <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                Step {index + 1}
+              </span>
+              <p className="mt-1 text-xs font-semibold leading-snug text-foreground">{stage.title}</p>
+            </div>
+          ))}
+
+          {nodes.map((node, nodeIndex) => {
+            const seller = participantForNodeSide(node, "seller");
+            const buyer = participantForNodeSide(node, "buyer");
+            const completedForNode = stages.filter(
+              (stage) => milestoneFor(node.id, stage.title)?.status === "completed"
+            ).length;
+            const nodeProgress = Math.round((completedForNode / stages.length) * 100);
+
+            return (
+              <div key={node.id} className="contents">
+                <div className="sticky left-0 z-10 border-b border-r border-border bg-card px-4 py-4 last:border-b-0">
+                  <div className="flex items-start gap-3">
+                    <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary text-xs font-semibold text-primary-foreground">
+                      {nodeIndex + 1}
+                    </span>
+                    <div className="min-w-0">
+                      <p className="truncate text-xs font-semibold text-foreground">
+                        {seller?.name ?? "Seller not assigned"} → {buyer?.name ?? "Buyer not assigned"}
+                      </p>
+                      <p className="mt-0.5 truncate text-[11px] text-muted-foreground">{node.address}</p>
+                      <div className="mt-2 flex items-center gap-2">
+                        <span className="h-1.5 w-16 overflow-hidden rounded-full bg-secondary">
+                          <span
+                            className="block h-full rounded-full bg-primary"
+                            style={{ width: `${nodeProgress}%` }}
+                          />
+                        </span>
+                        <span className="text-[10px] font-medium text-muted-foreground">{nodeProgress}%</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {stages.map((stage) => {
+                  const milestone = milestoneFor(node.id, stage.title);
+                  const overdue =
+                    Boolean(milestone?.dueDate) &&
+                    milestone?.status !== "completed" &&
+                    new Date(`${milestone!.dueDate}T23:59:59`).getTime() < Date.now();
+
+                  return (
+                    <div
+                      key={`${node.id}-${stage.title}`}
+                      className={cn(
+                        "border-b border-r border-border px-3 py-4 last:border-r-0",
+                        progressStatusClass(milestone?.status, "cell")
+                      )}
+                    >
+                      <div className="flex items-start gap-2">
+                        <ProgressIcon status={milestone?.status} />
+                        <div className="min-w-0">
+                          <p className="text-xs font-medium text-foreground">
+                            {progressStatusLabel(milestone?.status)}
+                          </p>
+                          {milestone?.dueDate ? (
+                            <p className={cn("mt-1 text-[10px]", overdue ? "font-medium text-red-700" : "text-muted-foreground")}>
+                              {overdue ? "Overdue" : "Due"} {formatDueDate(milestone.dueDate)}
+                            </p>
+                          ) : (
+                            <p className="mt-1 text-[10px] text-muted-foreground">
+                              {milestone ? "No due date" : "Awaiting setup"}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      <div className="flex flex-wrap gap-x-4 gap-y-2 text-[11px] text-muted-foreground">
+        {([
+          ["completed", "Complete"],
+          ["in_progress", "In progress"],
+          ["blocked", "Blocked"],
+          ["pending", "Not started"],
+        ] as const).map(([status, label]) => (
+          <span key={status} className="flex items-center gap-1.5">
+            <span className={cn("h-2 w-2 rounded-full", progressStatusClass(status, "dot"))} />
+            {label}
+          </span>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function ProgressIcon({ status }: { status: ProgressMilestone["status"] | undefined }) {
+  if (status === "completed") {
+    return <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" />;
+  }
+  if (status === "in_progress") {
+    return <Clock3 className="mt-0.5 h-4 w-4 shrink-0 text-amber-600" />;
+  }
+  if (status === "blocked") {
+    return <CircleAlert className="mt-0.5 h-4 w-4 shrink-0 text-red-600" />;
+  }
+  return <Circle className="mt-0.5 h-4 w-4 shrink-0 text-slate-400" />;
+}
+
+function progressStatusLabel(status: ProgressMilestone["status"] | undefined) {
+  if (status === "completed") return "Complete";
+  if (status === "in_progress") return "In progress";
+  if (status === "blocked") return "Blocked";
+  return "Not started";
+}
+
+function progressStatusClass(
+  status: ProgressMilestone["status"] | undefined,
+  element: "bar" | "cell" | "dot"
+) {
+  if (element === "cell") {
+    if (status === "completed") return "bg-emerald-50/70";
+    if (status === "in_progress") return "bg-amber-50/80";
+    if (status === "blocked") return "bg-red-50/80";
+    return "bg-card";
+  }
+
+  if (status === "completed") return "bg-emerald-500";
+  if (status === "in_progress") return "bg-amber-500";
+  if (status === "blocked") return "bg-red-500";
+  return "bg-slate-200";
+}
+
+function formatDueDate(value: string) {
+  return new Date(`${value}T12:00:00`).toLocaleDateString("en-GB", {
+    day: "numeric",
+    month: "short",
+  });
 }
 
 function SidePerson({

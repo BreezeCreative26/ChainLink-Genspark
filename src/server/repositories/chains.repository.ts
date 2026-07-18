@@ -157,6 +157,23 @@ export async function insertChainParticipant(
   return data;
 }
 
+export async function getParticipantWorkspaceContext(
+  supabase: TypedClient,
+  participantId: string,
+  chainId: string
+) {
+  const { data, error } = await supabase
+    .from("chain_participants")
+    .select("organisation_id")
+    .eq("id", participantId)
+    .eq("chain_id", chainId)
+    .eq("status", "active")
+    .maybeSingle();
+
+  if (error) throw error;
+  return data;
+}
+
 export async function insertProperty(
   supabase: TypedClient,
   input: Database["public"]["Tables"]["properties"]["Insert"]

@@ -32,6 +32,7 @@ export async function confirmMilestoneAction(input: {
 
 export async function createMilestoneAction(input: {
   chainId: string;
+  chainNodeId: string | null;
   title: string;
   dueDate: string | null;
   guestConfirmable: boolean;
@@ -47,6 +48,7 @@ export async function createMilestoneAction(input: {
   try {
     await createMilestone(supabase, {
       chainId: input.chainId,
+      chainNodeId: input.chainNodeId,
       title: input.title.trim(),
       dueDate: input.dueDate,
       guestConfirmable: input.guestConfirmable,

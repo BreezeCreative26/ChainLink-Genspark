@@ -240,6 +240,21 @@ export async function addLinkedTransaction(
     depends_on_node_id: params.dependsOnNodeId,
   });
 
+  // Every linked property is a distinct customer transaction and needs its
+  // own copy of the standard conveyancing stages. Without this, only the
+  // first property could show meaningful progress in the full-chain view.
+  const actorContext = await chainsRepo.getParticipantWorkspaceContext(
+    supabase,
+    params.actorParticipantId,
+    params.chainId
+  );
+  await applyTemplatesToNewChain(supabase, {
+    chainId: params.chainId,
+    chainNodeId: node.id,
+    organisationId: actorContext?.organisation_id ?? null,
+    creatorParticipantId: params.actorParticipantId,
+  });
+
   await chainsRepo.insertActivityLog(supabase, {
     chain_id: params.chainId,
     actor_participant_id: params.actorParticipantId,

@@ -8,7 +8,11 @@ export async function listMilestonesForChain(supabase: TypedClient, chainId: str
   const { data, error } = await supabase
     .from("milestones")
     .select(
-      "id, title, status, due_date, completed_at, visibility, guest_confirmable, created_at"
+      `
+      id, title, status, due_date, completed_at, visibility,
+      guest_confirmable, created_at, chain_node_id, template_id,
+      milestone_templates ( default_sequence_index )
+      `
     )
     .eq("chain_id", chainId)
     .order("created_at", { ascending: true });

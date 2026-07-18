@@ -139,6 +139,23 @@ export default async function ChainDetailPage({
     };
   });
 
+  const milestoneRows = milestones.map((milestone) => {
+    const template = Array.isArray(milestone.milestone_templates)
+      ? milestone.milestone_templates[0]
+      : milestone.milestone_templates;
+
+    return {
+      id: milestone.id,
+      chainNodeId: milestone.chain_node_id,
+      title: milestone.title,
+      status: milestone.status,
+      dueDate: milestone.due_date,
+      completedAt: milestone.completed_at,
+      sequenceIndex: template?.default_sequence_index ?? null,
+      createdAt: milestone.created_at,
+    };
+  });
+
   const participantRows = participants
     .filter((participant) => participant.status === "active")
     .map((participant) => {
@@ -194,28 +211,12 @@ export default async function ChainDetailPage({
 
       <div className="grid gap-5 lg:grid-cols-3">
         <div className="space-y-4 lg:col-span-2">
-          <Card>
-            <CardHeader>
-              <CardTitle>Milestones</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <MilestonesPanel
-                chainId={chain.id}
-                myParticipantId={myParticipant?.id ?? null}
-                myOrganisationId={myOrganisationId}
-                isGuest={isGuest}
-                readOnly={isReadOnlyObserver}
-                milestones={milestones}
-              />
-            </CardContent>
-          </Card>
-
           {!isGuest && (
             <Card>
               <CardHeader>
-                <CardTitle>Chain overview</CardTitle>
+                <CardTitle>Full chain progress</CardTitle>
                 <p className="text-sm text-muted-foreground">
-                  See who is connected and how each property transaction depends on the next.
+                  See every customer transaction, its current stage, and where the chain is being held up.
                 </p>
               </CardHeader>
               <CardContent>
@@ -225,10 +226,31 @@ export default async function ChainDetailPage({
                   readOnly={isReadOnlyObserver}
                   nodes={nodeRows}
                   participants={participantRows}
+                  milestones={milestoneRows}
                 />
               </CardContent>
             </Card>
           )}
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Milestone updates</CardTitle>
+              <p className="text-sm text-muted-foreground">
+                Update the individual steps that feed the full-chain view above.
+              </p>
+            </CardHeader>
+            <CardContent>
+              <MilestonesPanel
+                chainId={chain.id}
+                myParticipantId={myParticipant?.id ?? null}
+                myOrganisationId={myOrganisationId}
+                isGuest={isGuest}
+                readOnly={isReadOnlyObserver}
+                milestones={milestones}
+                nodes={nodeRows}
+              />
+            </CardContent>
+          </Card>
 
           {!isGuest && (
             <Card>

@@ -16,10 +16,16 @@ import type { MilestoneStatus } from "@/types/chain";
 
 interface MilestoneRow {
   id: string;
+  chain_node_id: string | null;
   title: string;
   status: MilestoneStatus;
   due_date: string | null;
   guest_confirmable: boolean;
+}
+
+interface NodeOption {
+  id: string;
+  address: string;
 }
 
 const STATUS_ICON: Record<MilestoneStatus, typeof Circle> = {
@@ -38,6 +44,7 @@ export function MilestonesPanel({
   isGuest,
   readOnly,
   milestones,
+  nodes,
 }: {
   chainId: string;
   myParticipantId: string | null;
@@ -45,6 +52,7 @@ export function MilestonesPanel({
   isGuest: boolean;
   readOnly: boolean;
   milestones: MilestoneRow[];
+  nodes: NodeOption[];
 }) {
   const [isPending, startTransition] = useTransition();
   const [showForm, setShowForm] = useState(false);
@@ -52,6 +60,7 @@ export function MilestonesPanel({
   const [dueDate, setDueDate] = useState("");
   const [guestConfirmable, setGuestConfirmable] = useState(false);
   const [keepInternal, setKeepInternal] = useState(false);
+  const [chainNodeId, setChainNodeId] = useState(nodes[0]?.id ?? "");
   const [error, setError] = useState<string | null>(null);
 
   function handleConfirm(milestone: MilestoneRow) {
@@ -89,6 +98,7 @@ export function MilestonesPanel({
     startTransition(async () => {
       const result = await createMilestoneAction({
         chainId,
+        chainNodeId: chainNodeId || null,
         title,
         dueDate: dueDate || null,
         guestConfirmable,
@@ -134,6 +144,11 @@ export function MilestonesPanel({
                     }
                   />
                   <span className="text-sm text-foreground">{m.title}</span>
+                  {m.chain_node_id && nodes.length > 1 && (
+                    <Badge variant="secondary" className="max-w-44 truncate text-[10px]">
+                      {nodes.find((node) => node.id === m.chain_node_id)?.address ?? "Transaction"}
+                    </Badge>
+                  )}
                   {m.guest_confirmable && (
                     <Badge variant="outline" className="text-[10px]">
                       Guest-confirmable
@@ -171,6 +186,16 @@ export function MilestonesPanel({
       {!isGuest && !readOnly &&
         (showForm ? (
           <form onSubmit={handleCreate} className="space-y-2 border-t border-border pt-4">
+            {nodes.length > 0 && (
+              <Select value={chainNodeId} onChange={(e) => setChainNodeId(e.target.value)}>
+                {nodes.map((node) => (
+                  <option key={node.id} value={node.id}>
+                    Customer transaction: {node.address}
+                  </option>
+                ))}
+                <option value="">Whole chain</option>
+              </Select>
+            )}
             <Input
               placeholder="Milestone title"
               value={title}

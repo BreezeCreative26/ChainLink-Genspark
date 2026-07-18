@@ -4,6 +4,7 @@
 
 ## Overview
 
+- **Full-chain progress board** — see every customer transaction as a row across the complete conveyancing journey, with current stage, blockers, due dates and percentage progress
 - **Visual chain mapping** — see accepted participants, seller/buyer sides and linked property dependencies in one responsive chain view
 - **Property chain tracking** — create and manage property chains with real-time status
 - **Three access modes** — Proxy (one agent manages all), Guest (invite buyers/sellers), Connected Professional (full firm dashboard)
@@ -168,7 +169,7 @@ After running `supabase/seed.sql`:
 | `/api/health` | Public | Vercel readiness plus live Supabase Auth/PostgREST probes; exposes status only, never secrets |
 | `/chains` | Authenticated | Participant home or a professional's directly joined chains |
 | `/chains/new` | Authenticated | Create a new chain workspace |
-| `/chains/[id]` | RLS-authorised | Canonical chain workspace with a visual participant and transaction map; direct participants can act, firm observers are explicitly read-only |
+| `/chains/[id]` | RLS-authorised | Canonical workspace with a full-chain customer progress board, participant map and transaction dependencies; direct participants can act, firm observers are explicitly read-only |
 | `/dashboard` | Authenticated professional | Role-aware firm or direct-only solo portfolio, workload, risk and completion overview |
 | `/tasks` | Authenticated professional | Cross-chain tasks and milestones in the viewer's authorised dashboard scope |
 | `/documents` | Authenticated professional | Cross-chain document index with chain-scoped secure opening |
@@ -214,6 +215,10 @@ Preview and Development), then redeploy to activate authentication.
 - Fixed invitation acceptance failing under RLS for newly-signed-up invitees: `INSERT ... RETURNING` on `chain_participants` re-evaluates SELECT policies against the brand-new row (the same chicken-and-egg gap as chain creation), so the participant insert now happens as a plain insert with a client-generated id, with the row fetched back in a separate follow-up select once real membership exists
 - Replaced the linked-transactions text list with a responsive chain visual that clearly shows every accepted participant (including a distinct “You” state), participant roles, transaction status, seller-to-buyer sides and property dependencies
 - Added a safe display fallback for older single-property chains whose seller/buyer participant IDs were not populated, while preserving explicit node-side links for multi-property chains
+- Added a full-chain customer progress matrix: each property transaction is one row and each real milestone is one ordered stage, with per-customer completion percentages, current stage, blocked and overdue states, plus overall chain completion
+- Added a compact mobile version of the progress board with per-customer stage bars and current-stage summaries
+- Linked newly-created onward transactions to their own complete milestone template set so every new customer row is trackable from offer accepted through completion
+- Added transaction targeting when creating a manual milestone so updates feed the correct customer row rather than becoming an ambiguous chain-wide step
 - Pinned compatible Supabase packages and upgraded Next.js within the 14.2 release line
 
 ## Invitation Emails
@@ -244,9 +249,11 @@ send will fail with a provider-side rejection.
 ## User Guide: Chain Visual
 
 1. Open **Chains** and select the shared chain.
-2. In **Chain overview**, confirm both your **You** card and the other participant (for example, Brad) appear under **People in this chain**.
-3. Review **Transaction path** to see the property, seller/buyer sides and completion status.
-4. Use **Add transaction** to add an onward purchase and choose the property it depends on. Read-only firm observers can view this map but cannot change it.
+2. In **Full chain progress**, read each customer/property transaction as a row and the conveyancing stages from left to right.
+3. Use the row percentage and highlighted cells to see each customer’s current position; amber means in progress, red means blocked, and green means complete.
+4. Review the overall percentage and blocker alert to understand whether the complete chain is ready to move.
+5. Use **Milestone updates** to change the real step statuses. When adding a custom milestone, choose the customer transaction it belongs to.
+6. Confirm both your **You** card and the other participant (for example, Brad) appear under **People in this chain**. Use **Add transaction** for an onward purchase; the new row receives its own standard progress stages automatically.
 
 ## Recommended Next Steps
 
