@@ -278,7 +278,9 @@ export async function listActivityForChain(supabase: TypedClient, chainId: strin
 export async function listChainNodesForChain(supabase: TypedClient, chainId: string) {
   const { data, error } = await supabase
     .from("chain_nodes")
-    .select("id, sequence_index, depends_on_node_id, properties ( address_line1, city )")
+    .select(
+      "id, sequence_index, depends_on_node_id, status, seller_participant_id, buyer_participant_id, properties ( address_line1, city, postcode )"
+    )
     .eq("chain_id", chainId)
     .order("sequence_index", { ascending: true });
 

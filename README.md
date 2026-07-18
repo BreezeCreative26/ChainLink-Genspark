@@ -4,6 +4,7 @@
 
 ## Overview
 
+- **Visual chain mapping** — see accepted participants, seller/buyer sides and linked property dependencies in one responsive chain view
 - **Property chain tracking** — create and manage property chains with real-time status
 - **Three access modes** — Proxy (one agent manages all), Guest (invite buyers/sellers), Connected Professional (full firm dashboard)
 - **Milestones & Tasks** — track conveyancing progress with shared and internal milestones
@@ -167,7 +168,7 @@ After running `supabase/seed.sql`:
 | `/api/health` | Public | Vercel readiness plus live Supabase Auth/PostgREST probes; exposes status only, never secrets |
 | `/chains` | Authenticated | Participant home or a professional's directly joined chains |
 | `/chains/new` | Authenticated | Create a new chain workspace |
-| `/chains/[id]` | RLS-authorised | Canonical chain workspace; direct participants can act, firm observers are explicitly read-only |
+| `/chains/[id]` | RLS-authorised | Canonical chain workspace with a visual participant and transaction map; direct participants can act, firm observers are explicitly read-only |
 | `/dashboard` | Authenticated professional | Role-aware firm or direct-only solo portfolio, workload, risk and completion overview |
 | `/tasks` | Authenticated professional | Cross-chain tasks and milestones in the viewer's authorised dashboard scope |
 | `/documents` | Authenticated professional | Cross-chain document index with chain-scoped secure opening |
@@ -211,6 +212,8 @@ Preview and Development), then redeploy to activate authentication.
 - Fixed Next.js Server Actions rejecting requests behind multiple sandbox preview domains
 - Wired real transactional invite emails via Resend, with a copy-link fallback when delivery fails
 - Fixed invitation acceptance failing under RLS for newly-signed-up invitees: `INSERT ... RETURNING` on `chain_participants` re-evaluates SELECT policies against the brand-new row (the same chicken-and-egg gap as chain creation), so the participant insert now happens as a plain insert with a client-generated id, with the row fetched back in a separate follow-up select once real membership exists
+- Replaced the linked-transactions text list with a responsive chain visual that clearly shows every accepted participant (including a distinct “You” state), participant roles, transaction status, seller-to-buyer sides and property dependencies
+- Added a safe display fallback for older single-property chains whose seller/buyer participant IDs were not populated, while preserving explicit node-side links for multi-property chains
 - Pinned compatible Supabase packages and upgraded Next.js within the 14.2 release line
 
 ## Invitation Emails
@@ -237,6 +240,13 @@ send will fail with a provider-side rejection.
 - Automated CRM/conveyancing system integrations
 - Enterprise SSO and audit export
 - Computed risk rules beyond the current milestone/activity signals
+
+## User Guide: Chain Visual
+
+1. Open **Chains** and select the shared chain.
+2. In **Chain overview**, confirm both your **You** card and the other participant (for example, Brad) appear under **People in this chain**.
+3. Review **Transaction path** to see the property, seller/buyer sides and completion status.
+4. Use **Add transaction** to add an onward purchase and choose the property it depends on. Read-only firm observers can view this map but cannot change it.
 
 ## Recommended Next Steps
 

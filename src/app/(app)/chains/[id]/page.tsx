@@ -131,9 +131,30 @@ export default async function ChainDetailPage({
       id: n.id,
       sequenceIndex: n.sequence_index,
       dependsOnNodeId: n.depends_on_node_id,
+      status: n.status,
+      sellerParticipantId: n.seller_participant_id,
+      buyerParticipantId: n.buyer_participant_id,
       address: [prop?.address_line1, prop?.city].filter(Boolean).join(", ") || "Untitled property",
+      postcode: prop?.postcode ?? null,
     };
   });
+
+  const participantRows = participants
+    .filter((participant) => participant.status === "active")
+    .map((participant) => {
+      const profile = Array.isArray(participant.profiles)
+        ? participant.profiles[0]
+        : participant.profiles;
+
+      return {
+        id: participant.id,
+        profileId: participant.profile_id,
+        name: profile?.full_name ?? profile?.email ?? ROLE_LABELS[participant.role] ?? "Chain member",
+        role: participant.role,
+        accessMode: participant.access_mode,
+        isCurrentUser: participant.profile_id === user.id,
+      };
+    });
 
   return (
     <div>
@@ -192,7 +213,10 @@ export default async function ChainDetailPage({
           {!isGuest && (
             <Card>
               <CardHeader>
-                <CardTitle>Linked transactions</CardTitle>
+                <CardTitle>Chain overview</CardTitle>
+                <p className="text-sm text-muted-foreground">
+                  See who is connected and how each property transaction depends on the next.
+                </p>
               </CardHeader>
               <CardContent>
                 <TopologyPanel
@@ -200,6 +224,7 @@ export default async function ChainDetailPage({
                   myParticipantId={myParticipant?.id ?? null}
                   readOnly={isReadOnlyObserver}
                   nodes={nodeRows}
+                  participants={participantRows}
                 />
               </CardContent>
             </Card>
