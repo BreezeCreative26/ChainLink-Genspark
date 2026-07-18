@@ -41,6 +41,80 @@ export async function insertChain(supabase: TypedClient, createdByProfileId: str
   return data;
 }
 
+/**
+ * Creates a chain, the creator's own participant row, the first property,
+ * and the first chain_node in a single atomic call via the
+ * `create_chain_workspace` Postgres function (SECURITY DEFINER).
+ *
+ * This exists because the naive sequential-insert approach (chain, then
+ * chain_participants, then properties, then chain_nodes as four separate
+ * client-side inserts under RLS) has a chicken-and-egg gap: the
+ * `properties_insert`/`chain_nodes_insert` policies require
+ * `is_chain_member(chain_id)`, which itself requires an *active*
+ * chain_participants row for the caller — but that row is only created by
+ * the second insert in the sequence. Every step individually satisfies its
+ * own policy in isolation, but PostgREST does not run them in the same
+ * transaction as a later step's check in a way that lets this bootstrap
+ * itself from nothing. A SECURITY DEFINER function sidesteps the ordering
+ * problem entirely by doing all four inserts server-side under one
+ * elevated-but-scoped transaction, still gated by the same role/ownership
+ * checks internally.
+ */
+export async function insertChainWorkspace(
+  supabase: TypedClient,
+  input: {
+    creatorRole: string;
+    addressLine1: string;
+    addressLine2?: string | null;
+    city?: string | null;
+    postcode?: string | null;
+    listingPrice?: number | null;
+  }
+) {
+  const { data, error } = await supabase.rpc("create_chain_workspace" as never, {
+    p_creator_role: input.creatorRole,
+    p_address_line1: input.addressLine1,
+    p_address_line2: input.addressLine2 ?? null,
+    p_city: input.city ?? null,
+    p_postcode: input.postcode ?? null,
+    p_listing_price: input.listingPrice ?? null,
+  } as never);
+
+  if (error) throw error;
+
+  const row = (Array.isArray(data) ? data[0] : data) as {
+    chain_id: string;
+    chain_ref: string;
+    chain_status: "active" | "stalled" | "completed" | "fallen_through";
+    chain_created_at: string;
+    participant_id: string;
+    participant_role: string;
+    access_mode: "proxy" | "guest" | "connected";
+    organisation_id: string | null;
+    property_id: string;
+    chain_node_id: string;
+  };
+
+  if (!row) throw new Error("create_chain_workspace returned no row");
+
+  return {
+    chain: {
+      id: row.chain_id,
+      chain_ref: row.chain_ref,
+      status: row.chain_status,
+      created_at: row.chain_created_at,
+    },
+    participant: {
+      id: row.participant_id,
+      role: row.participant_role,
+      access_mode: row.access_mode,
+      organisation_id: row.organisation_id,
+    },
+    propertyId: row.property_id,
+    chainNodeId: row.chain_node_id,
+  };
+}
+
 export async function insertChainParticipant(
   supabase: TypedClient,
   input: Database["public"]["Tables"]["chain_participants"]["Insert"]

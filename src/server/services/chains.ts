@@ -63,42 +63,32 @@ export async function createChain(supabase: TypedClient, input: CreateChainInput
     throw new AppError("Not authenticated");
   }
 
-  const { accessMode, organisationId } = await resolveAccessModeForCreator(
-    supabase,
-    user.id,
-    input.creatorRole
-  );
-
-  const chain = await chainsRepo.insertChain(supabase, user.id);
-
-  const participant = await chainsRepo.insertChainParticipant(supabase, {
-    chain_id: chain.id,
-    profile_id: user.id,
-    role: input.creatorRole,
-    access_mode: accessMode,
-    organisation_id: organisationId,
-  });
-
-  const property = await chainsRepo.insertProperty(supabase, {
-    chain_id: chain.id,
-    address_line1: input.property.addressLine1,
-    address_line2: input.property.addressLine2 || null,
+  // Creates the chain, the creator's own participant row, the first
+  // property, and the first chain_node atomically via a SECURITY DEFINER
+  // Postgres function. This replaces the earlier sequential-inserts
+  // approach: those four inserts, run one at a time under RLS, had a
+  // chicken-and-egg gap (properties/chain_nodes policies require the
+  // caller to already be an active chain_participants member of the
+  // chain being inserted into, but that row didn't exist yet at the point
+  // the property/node inserts ran) that surfaced as a 42501 RLS violation
+  // in production. See chains.repository.ts:insertChainWorkspace for the
+  // full explanation. This is the "Phase 3 hardening: promote to a single
+  // Postgres RPC" migration referenced in the comment above — done now
+  // because it was blocking all chain creation, not merely a nice-to-have.
+  const workspace = await chainsRepo.insertChainWorkspace(supabase, {
+    creatorRole: input.creatorRole,
+    addressLine1: input.property.addressLine1,
+    addressLine2: input.property.addressLine2 || null,
     city: input.property.city || null,
     postcode: input.property.postcode || null,
-    listing_price: input.property.listingPrice ?? null,
+    listingPrice: input.property.listingPrice ?? null,
   });
 
-  // The creator's role determines which side of the transaction they sit
-  // on for this first node. Agents don't sit on either side themselves —
-  // the node's seller/buyer slots are filled in once those participants
-  // (or their invitations) are attached.
-  const chainNode = await chainsRepo.insertChainNode(supabase, {
-    chain_id: chain.id,
-    property_id: property.id,
-    sequence_index: 1,
-    seller_participant_id: input.creatorRole === "seller" ? participant.id : null,
-    buyer_participant_id: input.creatorRole === "buyer" ? participant.id : null,
-  });
+  const chain = workspace.chain;
+  const participant = workspace.participant;
+  const accessMode = participant.access_mode;
+  const organisationId = participant.organisation_id;
+  const chainNode = { id: workspace.chainNodeId };
 
   // Gives the chain a real starter checklist instead of nothing — see
   // docs/DECISIONS.md ("Hardening review") on why an empty chain was a
