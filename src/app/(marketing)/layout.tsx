@@ -1,8 +1,14 @@
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 
-import { Button } from "@/components/ui/button";
 import { LogoWithWordmark } from "@/components/layout/logo-mark";
+
+const navLinks = [
+  { href: "/#ways-to-use", label: "Ways to use ChainLink" },
+  { href: "/#how-it-works", label: "How it works" },
+  { href: "/#security", label: "Security" },
+  { href: "/#pricing", label: "Pricing" },
+];
 
 export default function MarketingLayout({
   children,
@@ -17,18 +23,29 @@ export default function MarketingLayout({
             <LogoWithWordmark />
           </Link>
           <nav aria-label="Primary navigation" className="flex items-center gap-1 sm:gap-2">
-            <div className="mr-3 hidden items-center gap-6 lg:flex">
-              <Link href="/#how-it-works" className="text-sm font-medium text-muted-foreground transition-colors hover:text-foreground">How it works</Link>
-              <Link href="/#for-everyone" className="text-sm font-medium text-muted-foreground transition-colors hover:text-foreground">For every role</Link>
-              <Link href="/#security" className="text-sm font-medium text-muted-foreground transition-colors hover:text-foreground">Security</Link>
-              <Link href="/#pricing" className="text-sm font-medium text-muted-foreground transition-colors hover:text-foreground">Pricing</Link>
+            <div className="mr-4 hidden items-center gap-6 lg:flex">
+              {navLinks.map((link) => (
+                <Link
+                  key={link.href}
+                  href={link.href}
+                  className="text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
+                >
+                  {link.label}
+                </Link>
+              ))}
             </div>
-            <Button asChild variant="ghost" size="sm">
-              <Link href="/login">Log in</Link>
-            </Button>
-            <Button asChild size="sm" className="rounded-full pl-4 pr-3">
-              <Link href="/signup">Get started <ArrowRight className="h-3.5 w-3.5" /></Link>
-            </Button>
+            <Link
+              href="/login"
+              className="rounded-full px-4 py-2 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
+            >
+              Log in
+            </Link>
+            <Link
+              href="/signup"
+              className="inline-flex h-10 items-center gap-1.5 rounded-full bg-foreground px-4 text-sm font-semibold text-background transition-opacity hover:opacity-90"
+            >
+              Get started <ArrowRight className="h-3.5 w-3.5" />
+            </Link>
           </nav>
         </div>
       </header>
@@ -45,10 +62,11 @@ export default function MarketingLayout({
             </p>
           </div>
           <div className="flex flex-wrap gap-x-6 gap-y-2 text-sm text-muted-foreground sm:justify-end">
-            <Link href="/#how-it-works" className="hover:text-foreground">Platform</Link>
-            <Link href="/#for-everyone" className="hover:text-foreground">For every role</Link>
-            <Link href="/#security" className="hover:text-foreground">Security</Link>
-            <Link href="/#pricing" className="hover:text-foreground">Pricing</Link>
+            {navLinks.map((link) => (
+              <Link key={link.href} href={link.href} className="hover:text-foreground">
+                {link.label}
+              </Link>
+            ))}
             <Link href="/login" className="hover:text-foreground">Log in</Link>
           </div>
           <div className="border-t border-border pt-5 text-xs text-muted-foreground sm:col-span-2 sm:flex sm:justify-between">
