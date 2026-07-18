@@ -51,7 +51,15 @@ NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
 SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
 NEXT_PUBLIC_APP_URL=http://localhost:3000
+
+# Resend (transactional email — chain invitations)
+RESEND_API_KEY=your-resend-api-key
+INVITE_EMAIL_FROM="ChainLink <invites@yourdomain.com>"
 ```
+
+`INVITE_EMAIL_FROM` must be an address on a domain verified in your Resend
+account, or invite emails will fail to send (the invitation itself is
+still created — see "Invitation emails" below).
 
 ### 4. Run Locally
 
@@ -72,6 +80,8 @@ Open [http://localhost:3000](http://localhost:3000).
    - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
    - `SUPABASE_SERVICE_ROLE_KEY`
    - `NEXT_PUBLIC_APP_URL` (set to your Vercel deployment URL)
+   - `RESEND_API_KEY`
+   - `INVITE_EMAIL_FROM`
 4. Deploy
 
 ### Manual deploy (Vercel CLI)
@@ -142,6 +152,8 @@ After running `supabase/seed.sql`:
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | ✅ | Supabase anonymous (public) key |
 | `SUPABASE_SERVICE_ROLE_KEY` | ✅ | Supabase service role key (server-only) |
 | `NEXT_PUBLIC_APP_URL` | ✅ | Base URL for invite links & auth redirects |
+| `RESEND_API_KEY` | ✅ | Resend API key, server-only — sends invitation emails |
+| `INVITE_EMAIL_FROM` | ✅ | "From" address for invite emails; must be on a Resend-verified domain |
 | `STRIPE_SECRET_KEY` | ⏳ | Stripe secret key (Phase 4 — not yet active) |
 | `STRIPE_WEBHOOK_SECRET` | ⏳ | Stripe webhook secret (Phase 4 — not yet active) |
 
@@ -171,7 +183,7 @@ After running `supabase/seed.sql`:
 - **Install:** deterministic `npm ci` from the committed lockfile
 - **Runtime:** Node.js 18.17–22
 - **Health:** `GET /api/health` returns `ok`, `degraded`, or `configuration_required` and separately reports configuration, Supabase Auth API, and PostgREST readiness
-- **Required Vercel variables:** `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `NEXT_PUBLIC_APP_URL`
+- **Required Vercel variables:** `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `NEXT_PUBLIC_APP_URL`, `RESEND_API_KEY`, `INVITE_EMAIL_FROM`
 
 A deployment without the two public Supabase variables now keeps the website,
 login and signup routes online and shows an actionable configuration notice. It
@@ -195,11 +207,32 @@ Preview and Development), then redeploy to activate authentication.
 - Added richer plan, pricing, operating-mode and security context to the public website
 - Modernised settings, organisation, billing and notification surfaces
 - Restored strict TypeScript validation and removed stale Hono scaffold files
+- Fixed chain creation failing under RLS by moving it to a single atomic `create_chain_workspace` Postgres RPC
+- Fixed Next.js Server Actions rejecting requests behind multiple sandbox preview domains
+- Wired real transactional invite emails via Resend, with a copy-link fallback when delivery fails
+- Fixed invitation acceptance failing under RLS for newly-signed-up invitees: `INSERT ... RETURNING` on `chain_participants` re-evaluates SELECT policies against the brand-new row (the same chicken-and-egg gap as chain creation), so the participant insert now happens as a plain insert with a client-generated id, with the row fetched back in a separate follow-up select once real membership exists
 - Pinned compatible Supabase packages and upgraded Next.js within the 14.2 release line
+
+## Invitation Emails
+
+Sending a chain invitation (from the "New chain" initial-invite step or the
+Invitations panel on a chain's detail page) emails the invitee a link to
+`/invite/[token]` via [Resend](https://resend.com), using
+`src/server/services/email.ts`.
+
+This is deliberately **best-effort, not transactional**: the invitation row
+is created and fully usable via its link regardless of whether the email
+suceeds. If `RESEND_API_KEY`/`INVITE_EMAIL_FROM` are missing or Resend
+returns an error, the failure is logged server-side and the inviter sees an
+inline warning ("Invitation created, but the email couldn't be sent—copy
+the link below and send it yourself"). Every pending invitation row in the
+panel has a copy-link button for exactly this fallback case.
+
+`INVITE_EMAIL_FROM` must be an address on a Resend-verified domain, or every
+send will fail with a provider-side rejection.
 
 ## Not Yet Implemented
 
-- Transactional invite emails (provider integration required)
 - Live Stripe checkout and webhook processing
 - Automated CRM/conveyancing system integrations
 - Enterprise SSO and audit export
@@ -211,7 +244,7 @@ Preview and Development), then redeploy to activate authentication.
 2. Verify all migrations in `supabase/migrations/` and the `chain-documents` Storage policies are active in production.
 3. Configure Supabase Auth redirect URLs for the production and required preview Vercel domains.
 4. Run role/RLS production tests for owner, admin, agent, conveyancer, staff, independent professional, buyer, seller, guest, and firm observer.
-5. Add transaction email delivery for invitations and account lifecycle messages.
+5. Extend transactional email delivery (currently invitations only) to account lifecycle messages (welcome, password reset confirmations, milestone digests).
 6. Design per-participant document access grants before regulated handling of sensitive guest uploads.
 7. Add live payments only after the indicative plan structure and limits have been commercially approved.
 8. Schedule the next major framework/Supabase upgrade to remove remaining dependency audit findings.

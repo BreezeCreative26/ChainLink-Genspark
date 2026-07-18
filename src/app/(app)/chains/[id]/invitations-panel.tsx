@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { Plus, X } from "lucide-react";
+import { Plus, X, Copy, Check } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -41,6 +41,7 @@ interface InvitationRow {
   role: ChainParticipantRole;
   status: InvitationStatus;
   created_at: string;
+  token: string;
 }
 
 export function InvitationsPanel({
@@ -58,11 +59,14 @@ export function InvitationsPanel({
   const [email, setEmail] = useState("");
   const [role, setRole] = useState<ChainParticipantRole>("buyer");
   const [error, setError] = useState<string | null>(null);
+  const [warning, setWarning] = useState<string | null>(null);
+  const [copiedId, setCopiedId] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
   function handleInvite(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
+    setWarning(null);
 
     if (!myParticipantId) {
       setError("You need an active participant record on this chain to invite others.");
@@ -80,6 +84,9 @@ export function InvitationsPanel({
         setError(result.error);
         return;
       }
+      if (result?.warning) {
+        setWarning(result.warning);
+      }
       setEmail("");
       setShowForm(false);
     });
@@ -91,8 +98,22 @@ export function InvitationsPanel({
     });
   }
 
+  function handleCopyLink(invitationId: string, token: string) {
+    const url = `${window.location.origin}/invite/${token}`;
+    navigator.clipboard.writeText(url).then(() => {
+      setCopiedId(invitationId);
+      setTimeout(() => setCopiedId((current) => (current === invitationId ? null : current)), 2000);
+    });
+  }
+
   return (
     <div className="space-y-4">
+      {warning && (
+        <p className="rounded-md bg-amber-50 px-3 py-2 text-xs text-amber-800 dark:bg-amber-950/40 dark:text-amber-300">
+          {warning}
+        </p>
+      )}
+
       {invitations.length === 0 ? (
         <p className="text-sm text-muted-foreground">No invitations sent yet.</p>
       ) : (
@@ -100,6 +121,7 @@ export function InvitationsPanel({
           {invitations.map((inv) => {
             const badge = STATUS_BADGE[inv.status];
             const canRevoke = inv.status === "invited" || inv.status === "viewed";
+            const canCopyLink = inv.status === "invited" || inv.status === "viewed";
             return (
               <li key={inv.id} className="flex items-center justify-between gap-2">
                 <div className="min-w-0">
@@ -110,6 +132,22 @@ export function InvitationsPanel({
                   <Badge variant={badge.variant} className="text-[10px]">
                     {badge.label}
                   </Badge>
+                  {canCopyLink && !readOnly && (
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-7 w-7"
+                      onClick={() => handleCopyLink(inv.id, inv.token)}
+                      aria-label="Copy invitation link"
+                      title="Copy invitation link"
+                    >
+                      {copiedId === inv.id ? (
+                        <Check className="h-3.5 w-3.5 text-green-600" />
+                      ) : (
+                        <Copy className="h-3.5 w-3.5" />
+                      )}
+                    </Button>
+                  )}
                   {canRevoke && !readOnly && (
                     <Button
                       variant="ghost"

@@ -24,7 +24,7 @@ export async function insertInvitation(
 export async function listInvitationsForChain(supabase: TypedClient, chainId: string) {
   const { data, error } = await supabase
     .from("invitations")
-    .select("id, email, role, status, created_at, expires_at")
+    .select("id, email, role, status, created_at, expires_at, token")
     .eq("chain_id", chainId)
     .order("created_at", { ascending: false });
 

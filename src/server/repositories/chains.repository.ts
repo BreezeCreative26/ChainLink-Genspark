@@ -1,4 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { randomUUID } from "node:crypto";
 
 import type { Database } from "@/types/database";
 
@@ -119,13 +120,40 @@ export async function insertChainParticipant(
   supabase: TypedClient,
   input: Database["public"]["Tables"]["chain_participants"]["Insert"]
 ) {
-  const { data, error } = await supabase
+  // Postgres evaluates a table's SELECT policies against a row returned by
+  // an INSERT ... RETURNING — not just the INSERT policy's WITH CHECK. For
+  // a brand-new chain_participants row this collides with
+  // chain_participants_select's is_chain_member(chain_id) check: at the
+  // instant the row is being created, the inserting profile is not yet
+  // "a member" by that policy's definition (same chicken-and-egg gap
+  // already hit once for chains_insert — see insertChainWorkspace below).
+  // PostgREST's .select() forces `Prefer: return=representation`, which is
+  // exactly the RETURNING clause that triggers this — a plain insert with
+  // no RETURNING does not re-check SELECT policies and succeeds every
+  // time. Verified directly against the live project: identical insert
+  // payload, only the return preference differed, one 42501s and the
+  // other doesn't.
+  //
+  // Fix: insert with an explicit client-generated id and no .select(),
+  // then fetch the row back in a SEPARATE statement afterwards. By that
+  // point the row exists and the inserting profile genuinely is an active
+  // member of the chain, so chain_participants_select (and
+  // chain_participants_select_via_org) evaluate normally.
+  const id = randomUUID();
+
+  const { error: insertError } = await supabase
     .from("chain_participants")
-    .insert(input)
+    .insert({ ...input, id });
+
+  if (insertError) throw insertError;
+
+  const { data, error: selectError } = await supabase
+    .from("chain_participants")
     .select("id, role, access_mode, organisation_id")
+    .eq("id", id)
     .single();
 
-  if (error) throw error;
+  if (selectError) throw selectError;
   return data;
 }
 

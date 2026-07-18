@@ -10,13 +10,23 @@ import type {
 } from "@/types/chain";
 import * as invitationsRepo from "@/server/repositories/invitations.repository";
 import * as chainsRepo from "@/server/repositories/chains.repository";
+import { sendInvitationEmail } from "@/server/services/email";
 
 type TypedClient = SupabaseClient<Database, "public", Database["public"]>;
 
 /**
- * Sends a chain invitation and records the audit trail entry for it.
- * Reused both at chain-creation time and for ad-hoc invites from the chain
- * detail page, so "an invite was sent" is logged consistently either way.
+ * Sends a chain invitation: creates the invitations row, records the audit
+ * trail entry, and emails the invitee a link to respond. Reused both at
+ * chain-creation time and for ad-hoc invites from the chain detail page,
+ * so "an invite was sent" is logged consistently either way.
+ *
+ * The email is best-effort: if it fails to send (missing API key, provider
+ * error, etc.) the invitation itself is NOT rolled back — it already
+ * exists and is still fully usable via its link, so a flaky email
+ * provider must never block invite creation. The failure is logged to the
+ * server console and surfaced on the returned object so callers can warn
+ * the inviter (e.g. "invite created, but the email couldn't be sent — copy
+ * the link instead") rather than silently pretending delivery succeeded.
  */
 export async function sendInvitation(
   supabase: TypedClient,
@@ -44,7 +54,62 @@ export async function sendInvitation(
     visibility: "shared",
   });
 
-  return invitation;
+  const emailResult = await deliverInvitationEmail(supabase, {
+    chainId: params.chainId,
+    invitedByParticipantId: params.invitedByParticipantId,
+    toEmail: invitation.email,
+    role: invitation.role,
+    token: invitation.token,
+  });
+
+  if (!emailResult.sent) {
+    console.error(
+      `[invitations] Failed to email invitation ${invitation.id} to ${invitation.email}: ${emailResult.reason}`
+    );
+  }
+
+  return { ...invitation, emailSent: emailResult.sent };
+}
+
+async function deliverInvitationEmail(
+  supabase: TypedClient,
+  params: {
+    chainId: string;
+    invitedByParticipantId: string;
+    toEmail: string;
+    role: ChainParticipantRole;
+    token: string;
+  }
+): Promise<{ sent: true } | { sent: false; reason: string }> {
+  const [chainHeader, property, inviterProfileId] = await Promise.all([
+    chainsRepo.getChainByIdForProfile(supabase, params.chainId).catch(() => null),
+    chainsRepo.getFirstPropertyAddress(supabase, params.chainId).catch(() => null),
+    invitationsRepo.getInviterProfileId(supabase, params.invitedByParticipantId),
+  ]);
+
+  let inviterName: string | null = null;
+  if (inviterProfileId) {
+    const { data } = await supabase
+      .from("profiles")
+      .select("full_name, email")
+      .eq("id", inviterProfileId)
+      .maybeSingle();
+    inviterName = data?.full_name ?? data?.email ?? null;
+  }
+
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL?.trim() || "http://localhost:3000";
+  const inviteUrl = `${appUrl.replace(/\/$/, "")}/invite/${params.token}`;
+
+  return sendInvitationEmail({
+    toEmail: params.toEmail,
+    role: params.role,
+    chainRef: chainHeader?.chain_ref ?? "—",
+    propertyAddress: property
+      ? [property.address_line1, property.city].filter(Boolean).join(", ")
+      : null,
+    inviterName,
+    inviteUrl,
+  });
 }
 
 export async function listInvitations(supabase: TypedClient, chainId: string) {

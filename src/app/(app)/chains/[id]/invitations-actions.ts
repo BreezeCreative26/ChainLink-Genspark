@@ -18,19 +18,27 @@ export async function inviteParticipantAction(input: {
   }
 
   const supabase = createClient();
+  let emailSent = false;
   try {
-    await sendInvitation(supabase, {
+    const invitation = await sendInvitation(supabase, {
       chainId: input.chainId,
       email: input.email.trim(),
       role: input.role,
       invitedByParticipantId: input.invitedByParticipantId,
     });
+    emailSent = invitation.emailSent;
   } catch (err) {
     return { error: toActionError(err, "Could not send invitation.") };
   }
 
   revalidatePath(`/chains/${input.chainId}`);
-  return { success: true };
+  return {
+    success: true,
+    emailSent,
+    warning: emailSent
+      ? undefined
+      : "Invitation created, but the email couldn't be sent. Copy the link below and send it yourself.",
+  };
 }
 
 export async function revokeInvitationAction(chainId: string, invitationId: string) {
