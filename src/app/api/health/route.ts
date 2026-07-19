@@ -37,7 +37,7 @@ export async function GET() {
   const [authApi, dataApi] = configured
     ? await Promise.all([
         probeSupabase("/auth/v1/health"),
-        probeSupabase("/rest/v1/"),
+        probeSupabase("/rest/v1/chains?select=id&limit=0"),
       ])
     : [false, false];
   const ready = configured && authApi && dataApi;
