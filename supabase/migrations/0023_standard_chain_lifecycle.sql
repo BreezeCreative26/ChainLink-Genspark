@@ -304,7 +304,7 @@ begin
     case when p_link_organisation_id is null then 'guest' else 'connected' end,
     p_link_organisation_id
   )
-  on conflict (chain_id, profile_id, role) do update
+  on conflict on constraint chain_participants_chain_id_profile_id_role_key do update
     set status = 'active',
         access_mode = excluded.access_mode,
         organisation_id = excluded.organisation_id,
