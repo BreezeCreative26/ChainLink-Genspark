@@ -260,59 +260,36 @@ export async function updateChainNodeParticipants(
   if (!data) throw new Error("Transaction not found");
 }
 
-export async function attachParticipantToUnambiguousTransaction(input: {
-  chainId: string;
-  participantId: string;
-  role: "seller" | "buyer";
-}) {
-  const admin = createAdminClient();
-  const sideColumn =
-    input.role === "seller" ? "seller_participant_id" : "buyer_participant_id";
-  const { data: vacantNodes, error: selectError } = await admin
-    .from("chain_nodes")
-    .select("id")
-    .eq("chain_id", input.chainId)
-    .is(sideColumn, null);
-
-  if (selectError) throw selectError;
-  if (vacantNodes.length !== 1) return false;
-
-  const { error: updateError } = await admin
-    .from("chain_nodes")
-    .update({ [sideColumn]: input.participantId })
-    .eq("id", vacantNodes[0]!.id)
-    .eq("chain_id", input.chainId);
-
-  if (updateError) throw updateError;
-  return true;
-}
-
-export async function insertProperty(
+export async function insertLinkedChainTransaction(
   supabase: TypedClient,
-  input: Database["public"]["Tables"]["properties"]["Insert"]
+  input: {
+    chainId: string;
+    addressLine1: string;
+    city?: string | null;
+    postcode?: string | null;
+    dependsOnNodeId?: string | null;
+    sellerParticipantId?: string | null;
+    buyerParticipantId?: string | null;
+  }
 ) {
-  const { data, error } = await supabase
-    .from("properties")
-    .insert(input)
-    .select("id")
-    .single();
+  const { data, error } = await supabase.rpc("create_linked_chain_transaction" as never, {
+    p_chain_id: input.chainId,
+    p_address_line1: input.addressLine1,
+    p_city: input.city ?? null,
+    p_postcode: input.postcode ?? null,
+    p_depends_on_node_id: input.dependsOnNodeId ?? null,
+    p_seller_participant_id: input.sellerParticipantId ?? null,
+    p_buyer_participant_id: input.buyerParticipantId ?? null,
+  } as never);
 
   if (error) throw error;
-  return data;
-}
+  const row = (Array.isArray(data) ? data[0] : data) as {
+    property_id: string;
+    chain_node_id: string;
+  } | null;
+  if (!row) throw new Error("create_linked_chain_transaction returned no row");
 
-export async function insertChainNode(
-  supabase: TypedClient,
-  input: Database["public"]["Tables"]["chain_nodes"]["Insert"]
-) {
-  const { data, error } = await supabase
-    .from("chain_nodes")
-    .insert(input)
-    .select("id")
-    .single();
-
-  if (error) throw error;
-  return data;
+  return { propertyId: row.property_id, id: row.chain_node_id };
 }
 
 export async function insertInvitation(

@@ -32,14 +32,22 @@ export async function listInvitationsForChain(supabase: TypedClient, chainId: st
   return data;
 }
 
-export async function revokeInvitation(supabase: TypedClient, invitationId: string) {
-  const { error } = await supabase
+export async function revokeInvitation(
+  supabase: TypedClient,
+  chainId: string,
+  invitationId: string
+) {
+  const { data, error } = await supabase
     .from("invitations")
     .update({ status: "inactive" })
     .eq("id", invitationId)
-    .in("status", ["invited", "viewed"]); // no-op if already resolved
+    .eq("chain_id", chainId)
+    .in("status", ["invited", "viewed"])
+    .select("id")
+    .maybeSingle();
 
   if (error) throw error;
+  return data;
 }
 
 /**
@@ -62,6 +70,26 @@ export async function getInvitationByTokenForRecipient(
 
   if (error) throw error;
   return data;
+}
+
+export async function acceptInvitationAtomically(
+  supabase: TypedClient,
+  token: string,
+  organisationId: string | null
+) {
+  const { data, error } = await supabase.rpc("accept_chain_invitation" as never, {
+    p_token: token,
+    p_link_organisation_id: organisationId,
+  } as never);
+
+  if (error) throw error;
+  const row = (Array.isArray(data) ? data[0] : data) as {
+    chain_id: string;
+    participant_id: string;
+    invitation_status: "accepted" | "linked";
+  } | null;
+  if (!row) throw new Error("accept_chain_invitation returned no row");
+  return row;
 }
 
 export async function markInvitationResolved(

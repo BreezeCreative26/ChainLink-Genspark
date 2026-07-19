@@ -42,6 +42,24 @@ export async function addProxyParticipant(
     throw new AppError("Name is required.");
   }
 
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) throw new AppError("Not authenticated");
+
+  const management = await chainsRepo.getChainManagementContext(
+    supabase,
+    params.chainId,
+    user.id
+  );
+  if (
+    !management.canManage ||
+    !management.participant ||
+    management.participant.id !== params.managerParticipantId
+  ) {
+    throw new AppError("You do not have permission to add participants to this chain.");
+  }
+
   const admin = createAdminClient();
   const syntheticEmail = `proxy+${randomUUID()}@chainlink.invalid`;
 
@@ -55,17 +73,25 @@ export async function addProxyParticipant(
     throw new AppError("Could not add this participant. Please try again.");
   }
 
-  const participant = await chainsRepo.insertChainParticipant(supabase, {
-    chain_id: params.chainId,
-    profile_id: created.user.id,
-    role: params.role,
-    access_mode: "proxy",
-    proxy_manager_participant_id: params.managerParticipantId,
-  });
+  let participant;
+  try {
+    participant = await chainsRepo.insertChainParticipant(supabase, {
+      chain_id: params.chainId,
+      profile_id: created.user.id,
+      role: params.role,
+      access_mode: "proxy",
+      proxy_manager_participant_id: management.participant.id,
+    });
+  } catch (error) {
+    // Do not leave an unusable synthetic Auth identity behind if the
+    // participant grant fails its RLS or database integrity checks.
+    await admin.auth.admin.deleteUser(created.user.id).catch(() => undefined);
+    throw error;
+  }
 
   await chainsRepo.insertActivityLog(supabase, {
     chain_id: params.chainId,
-    actor_participant_id: params.managerParticipantId,
+    actor_participant_id: management.participant.id,
     action: "participant.added_proxy",
     entity_type: "chain_participant",
     entity_id: participant.id,

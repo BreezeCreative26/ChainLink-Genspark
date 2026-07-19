@@ -44,7 +44,7 @@ export async function inviteParticipantAction(input: {
 export async function revokeInvitationAction(chainId: string, invitationId: string) {
   const supabase = createClient();
   try {
-    await revokeInvitation(supabase, invitationId);
+    await revokeInvitation(supabase, { chainId, invitationId });
   } catch (err) {
     return { error: toActionError(err, "Could not revoke invitation.") };
   }

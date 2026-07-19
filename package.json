@@ -8,6 +8,7 @@
     "start": "next start",
     "lint": "next lint",
     "typecheck": "tsc --noEmit",
+    "verify:chain-lifecycle": "node scripts/verify-standard-chain.mjs",
     "check": "npm run lint && npm run typecheck && npm run build"
   },
   "engines": {

@@ -4,6 +4,7 @@
 
 ## Overview
 
+- **System-wide open-chain lifecycle** — every initial and linked property transaction receives the same atomic 12-stage journey, permissions and integrity rules; no chain-specific setup is required
 - **Open-chain progress board** — see every property transaction as a clean card containing the full ordered conveyancing journey, current stage, blockers, due dates and percentage progress
 - **Visual party mapping** — see every accepted participant, their role, each seller/buyer side and all linked property dependencies in one responsive workspace
 - **Property chain tracking** — create and manage property chains with real-time status
@@ -210,6 +211,10 @@ Preview and Development), then redeploy to activate authentication.
 - Modernised settings, organisation, billing and notification surfaces
 - Restored strict TypeScript validation and removed stale Hono scaffold files
 - Fixed chain creation failing under RLS by moving it to a single atomic `create_chain_workspace` Postgres RPC
+- Made the canonical 12-stage journey a database invariant for every transaction, including initial nodes, linked nodes, imports and future integration paths
+- Made linked property + node creation atomic, with same-chain property/dependency checks and cycle prevention
+- Made invitation acceptance atomic and restricted invitation/proxy management at both service and RLS layers
+- Added `npm run verify:chain-lifecycle`, which creates isolated temporary users/chains, verifies platform invariants and always cleans them up
 - Fixed Next.js Server Actions rejecting requests behind multiple sandbox preview domains
 - Wired real transactional invite emails via Resend, with a copy-link fallback when delivery fails
 - Fixed invitation acceptance failing under RLS for newly-signed-up invitees: `INSERT ... RETURNING` on `chain_participants` re-evaluates SELECT policies against the brand-new row (the same chicken-and-egg gap as chain creation), so the participant insert now happens as a plain insert with a client-generated id, with the row fetched back in a separate follow-up select once real membership exists
@@ -220,6 +225,18 @@ Preview and Development), then redeploy to activate authentication.
 - Linked newly-created onward transactions to their own complete milestone template set so every new customer row is trackable from offer accepted through completion
 - Added transaction targeting when creating a manual milestone so updates feed the correct customer row rather than becoming an ambiguous chain-wide step
 - Pinned compatible Supabase packages and upgraded Next.js within the 14.2 release line
+
+## Standard Chain Lifecycle
+
+The complete creation, progression, invitation, assignment, permissions and verification contract is documented in [`docs/STANDARD_CHAIN_LIFECYCLE.md`](docs/STANDARD_CHAIN_LIFECYCLE.md).
+
+Run the repeatable database integration verification against the configured Supabase project:
+
+```bash
+npm run verify:chain-lifecycle
+```
+
+The script uses isolated `.invalid` test identities and removes all temporary chains and users in a `finally` cleanup.
 
 ## Invitation Emails
 
@@ -259,9 +276,10 @@ send will fail with a provider-side rejection.
 
 1. Confirm the deployed `/api/health` reports `configuration: true`, `authApi: true`, and `dataApi: true`.
 2. Verify all migrations in `supabase/migrations/` and the `chain-documents` Storage policies are active in production.
-3. Configure Supabase Auth redirect URLs for the production and required preview Vercel domains.
-4. Run role/RLS production tests for owner, admin, agent, conveyancer, staff, independent professional, buyer, seller, guest, and firm observer.
-5. Extend transactional email delivery (currently invitations only) to account lifecycle messages (welcome, password reset confirmations, milestone digests).
-6. Design per-participant document access grants before regulated handling of sensitive guest uploads.
-7. Add live payments only after the indicative plan structure and limits have been commercially approved.
-8. Schedule the next major framework/Supabase upgrade to remove remaining dependency audit findings.
+3. Run `npm run verify:chain-lifecycle` after database migrations and before each production release.
+4. Configure Supabase Auth redirect URLs for the production and required preview Vercel domains.
+5. Extend role/RLS coverage for owner, admin, agent, conveyancer, staff, independent professional, buyer, seller, guest, and firm observer.
+6. Extend transactional email delivery (currently invitations only) to account lifecycle messages (welcome, password reset confirmations, milestone digests).
+7. Design per-participant document access grants before regulated handling of sensitive guest uploads.
+8. Add live payments only after the indicative plan structure and limits have been commercially approved.
+9. Schedule the next major framework/Supabase upgrade to remove remaining dependency audit findings.

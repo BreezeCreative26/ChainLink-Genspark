@@ -71,7 +71,10 @@ export async function insertMilestonesFromTemplates(
     };
   });
 
-  const { error } = await supabase.from("milestones").insert(rows);
+  const { error } = await supabase.from("milestones").upsert(rows, {
+    onConflict: "chain_node_id,template_id",
+    ignoreDuplicates: true,
+  });
   if (error) throw error;
 }
 

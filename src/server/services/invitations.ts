@@ -37,11 +37,34 @@ export async function sendInvitation(
     invitedByParticipantId: string;
   }
 ) {
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) throw new AppError("Not authenticated");
+
+  const management = await chainsRepo.getChainManagementContext(
+    supabase,
+    params.chainId,
+    user.id
+  );
+  if (
+    !management.canManage ||
+    !management.participant ||
+    management.participant.id !== params.invitedByParticipantId
+  ) {
+    throw new AppError("You do not have permission to invite people to this chain.");
+  }
+
+  const email = params.email.trim().toLowerCase();
+  if (!email || !email.includes("@")) {
+    throw new AppError("Enter a valid email address.");
+  }
+
   const invitation = await invitationsRepo.insertInvitation(supabase, {
     chain_id: params.chainId,
-    email: params.email,
+    email,
     role: params.role,
-    invited_by_participant_id: params.invitedByParticipantId,
+    invited_by_participant_id: management.participant.id,
   });
 
   await chainsRepo.insertActivityLog(supabase, {
@@ -116,8 +139,40 @@ export async function listInvitations(supabase: TypedClient, chainId: string) {
   return invitationsRepo.listInvitationsForChain(supabase, chainId);
 }
 
-export async function revokeInvitation(supabase: TypedClient, invitationId: string) {
-  return invitationsRepo.revokeInvitation(supabase, invitationId);
+export async function revokeInvitation(
+  supabase: TypedClient,
+  params: { chainId: string; invitationId: string }
+) {
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) throw new AppError("Not authenticated");
+
+  const management = await chainsRepo.getChainManagementContext(
+    supabase,
+    params.chainId,
+    user.id
+  );
+  if (!management.canManage || !management.participant) {
+    throw new AppError("You do not have permission to revoke invitations on this chain.");
+  }
+
+  const invitation = await invitationsRepo.revokeInvitation(
+    supabase,
+    params.chainId,
+    params.invitationId
+  );
+  if (!invitation) throw new AppError("Invitation not found or already resolved.");
+
+  await chainsRepo.insertActivityLog(supabase, {
+    chain_id: params.chainId,
+    actor_participant_id: management.participant.id,
+    action: "invitation.revoked",
+    entity_type: "invitation",
+    entity_id: params.invitationId,
+    source: "manual",
+    visibility: "shared",
+  });
 }
 
 /**
@@ -238,29 +293,16 @@ export async function acceptInvitation(
   } = await supabase.auth.getUser();
   if (!user) throw new AppError("Not authenticated");
 
-  const participant = await chainsRepo.insertChainParticipant(supabase, {
-    chain_id: check.chainId,
-    profile_id: user.id,
-    role: check.role,
-    access_mode: shouldLink ? "connected" : "guest",
-    organisation_id: shouldLink ? check.accountMatch!.organisationId : null,
-  });
-
-  await invitationsRepo.markInvitationResolved(supabase, check.invitationId, {
-    status: shouldLink ? "linked" : "accepted",
-    resultingParticipantId: participant.id,
-  });
-
-  // Attach accepted buyers/sellers automatically when exactly one transaction
-  // side is vacant. On a branching chain the mapping is intentionally left for
-  // a chain manager to choose in the workspace rather than guessed.
-  if (check.role === "seller" || check.role === "buyer") {
-    await chainsRepo.attachParticipantToUnambiguousTransaction({
-      chainId: check.chainId,
-      participantId: participant.id,
-      role: check.role,
-    });
-  }
+  // Participant creation and invitation resolution are one database
+  // transaction. The RPC repeats the authenticated email and organisation
+  // membership checks, and the participant trigger performs unambiguous
+  // seller/buyer assignment before the transaction commits.
+  const accepted = await invitationsRepo.acceptInvitationAtomically(
+    supabase,
+    token,
+    shouldLink ? check.accountMatch!.organisationId : null
+  );
+  const participant = { id: accepted.participant_id };
 
   await chainsRepo.insertActivityLog(supabase, {
     chain_id: check.chainId,

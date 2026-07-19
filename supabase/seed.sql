@@ -135,17 +135,17 @@ on conflict (id) do nothing;
 
 -- ── Milestone template + milestones ───────────────────────────────────────
 
-insert into milestone_templates (id, organisation_id, name, description, default_sequence_index, guest_confirmable) values
-  ('11111111-aaaa-1111-aaaa-111111111111', null, 'Offer accepted', 'Seller has accepted an offer from the buyer.', 1, false),
-  ('22222222-aaaa-2222-aaaa-222222222222', null, 'Mortgage offer received', 'Buyer''s lender has issued a formal mortgage offer.', 2, false),
-  ('33333333-aaaa-3333-aaaa-333333333333', null, 'Exchange of contracts', 'Contracts exchanged; the transaction is legally binding.', 3, false),
-  ('44444444-aaaa-4444-aaaa-444444444444', null, 'Completion', 'Funds transferred and keys released.', 4, false),
-  ('55555555-aaaa-5555-aaaa-555555555555', null, 'ID verification submitted', 'Buyer/seller has submitted ID documents for AML checks.', 0, true)
-on conflict (id) do nothing;
+-- Canonical global templates are installed by migration 0022 and applied to
+-- every node by migration 0023. Seed rows below resolve them by stable name so
+-- this file never creates a second template set with different UUIDs.
 
 -- Shared milestone: visible to everyone on the chain.
 insert into milestones (chain_id, chain_node_id, template_id, title, status, source, recorded_by_participant_id) values
-  ('c1111111-1111-1111-1111-111111111111', 'f1111111-1111-1111-1111-111111111111', '11111111-aaaa-1111-aaaa-111111111111', 'Offer accepted', 'completed', 'proxy', 'e1111111-1111-1111-1111-111111111111');
+  ('c1111111-1111-1111-1111-111111111111', 'f1111111-1111-1111-1111-111111111111', (select id from milestone_templates where organisation_id is null and name = 'Offer accepted' order by created_at limit 1), 'Offer accepted', 'completed', 'proxy', 'e1111111-1111-1111-1111-111111111111')
+on conflict (chain_node_id, template_id) do update set
+  status = excluded.status,
+  source = excluded.source,
+  recorded_by_participant_id = excluded.recorded_by_participant_id;
 
 -- Shared milestone entered on behalf of the proxy-managed seller by her agent.
 update milestones
@@ -153,11 +153,15 @@ update milestones
   where title = 'Offer accepted';
 
 insert into milestones (chain_id, chain_node_id, template_id, title, status) values
-  ('c1111111-1111-1111-1111-111111111111', 'f1111111-1111-1111-1111-111111111111', '22222222-aaaa-2222-aaaa-222222222222', 'Mortgage offer received', 'pending');
+  ('c1111111-1111-1111-1111-111111111111', 'f1111111-1111-1111-1111-111111111111', (select id from milestone_templates where organisation_id is null and name = 'Mortgage offer received' order by created_at limit 1), 'Mortgage offer received', 'pending')
+on conflict (chain_node_id, template_id) do update set status = excluded.status;
 
 -- Guest-confirmable milestone, for exercising the guest confirm action.
 insert into milestones (chain_id, chain_node_id, template_id, title, status, guest_confirmable) values
-  ('c1111111-1111-1111-1111-111111111111', 'f1111111-1111-1111-1111-111111111111', '55555555-aaaa-5555-aaaa-555555555555', 'ID verification submitted', 'pending', true);
+  ('c1111111-1111-1111-1111-111111111111', 'f1111111-1111-1111-1111-111111111111', (select id from milestone_templates where organisation_id is null and name = 'ID verification submitted' order by created_at limit 1), 'ID verification submitted', 'pending', true)
+on conflict (chain_node_id, template_id) do update set
+  status = excluded.status,
+  guest_confirmable = excluded.guest_confirmable;
 
 -- ── Internal task: visible only within Blake & Co. ────────────────────────
 
@@ -213,11 +217,17 @@ on conflict (id) do nothing;
 -- Overdue: due_date in the past, still pending — this is what makes the
 -- chain show up in "At risk" and "Overdue actions".
 insert into milestones (chain_id, chain_node_id, template_id, title, status, due_date) values
-  ('c2222222-2222-2222-2222-222222222222', 'f3333333-3333-3333-3333-333333333333', '22222222-aaaa-2222-aaaa-222222222222', 'Mortgage offer received', 'pending', (current_date - interval '5 days'));
+  ('c2222222-2222-2222-2222-222222222222', 'f3333333-3333-3333-3333-333333333333', (select id from milestone_templates where organisation_id is null and name = 'Mortgage offer received' order by created_at limit 1), 'Mortgage offer received', 'pending', (current_date - interval '5 days'))
+on conflict (chain_node_id, template_id) do update set
+  status = excluded.status,
+  due_date = excluded.due_date;
 
 -- Upcoming: due in the future — exercises "Upcoming completions".
 insert into milestones (chain_id, chain_node_id, template_id, title, status, due_date) values
-  ('c2222222-2222-2222-2222-222222222222', 'f3333333-3333-3333-3333-333333333333', '44444444-aaaa-4444-aaaa-444444444444', 'Completion', 'pending', (current_date + interval '10 days'));
+  ('c2222222-2222-2222-2222-222222222222', 'f3333333-3333-3333-3333-333333333333', (select id from milestone_templates where organisation_id is null and name = 'Completion' order by created_at limit 1), 'Completion', 'pending', (current_date + interval '10 days'))
+on conflict (chain_node_id, template_id) do update set
+  status = excluded.status,
+  due_date = excluded.due_date;
 
 insert into activity_logs (chain_id, actor_participant_id, action, entity_type, entity_id, source) values
   ('c2222222-2222-2222-2222-222222222222', 'e6666666-6666-6666-6666-666666666666', 'chain.created', 'chain', 'c2222222-2222-2222-2222-222222222222', 'manual');

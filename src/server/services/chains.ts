@@ -268,19 +268,18 @@ export async function addLinkedTransaction(
     throw new AppError("Choose an active buyer from this chain.");
   }
 
-  const property = await chainsRepo.insertProperty(supabase, {
-    chain_id: params.chainId,
-    address_line1: params.addressLine1.trim(),
+  // Property, node and the canonical 12 milestones are committed together by
+  // create_linked_chain_transaction + the chain-node milestone trigger. A bad
+  // dependency or assignment therefore cannot leave an orphan property or a
+  // transaction with no progression journey.
+  const node = await chainsRepo.insertLinkedChainTransaction(supabase, {
+    chainId: params.chainId,
+    addressLine1: params.addressLine1.trim(),
     city: params.city || null,
     postcode: params.postcode || null,
-  });
-
-  const node = await chainsRepo.insertChainNode(supabase, {
-    chain_id: params.chainId,
-    property_id: property.id,
-    depends_on_node_id: params.dependsOnNodeId,
-    seller_participant_id: params.sellerParticipantId ?? null,
-    buyer_participant_id: params.buyerParticipantId ?? null,
+    dependsOnNodeId: params.dependsOnNodeId,
+    sellerParticipantId: params.sellerParticipantId ?? null,
+    buyerParticipantId: params.buyerParticipantId ?? null,
   });
 
   // Every linked property is a distinct customer transaction and needs its
