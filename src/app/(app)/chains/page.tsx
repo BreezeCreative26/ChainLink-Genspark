@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import {
   ArrowRight,
   CheckCircle2,
@@ -42,6 +43,15 @@ export default async function ChainsPage() {
     user ? getWorkspaceContext(supabase, user.id) : null,
   ]);
   const participantHome = workspace?.mode === "participant";
+
+  // Buyers, sellers, and other pure participants have a single-chain
+  // workspace rather than a portfolio dashboard. Take them straight to the
+  // canonical workspace so the full transaction progression is the first
+  // thing they see after login (docs/OPERATING_MODEL.md, "Guest User Logic").
+  const onlyChain = chains.length === 1 ? chains[0] : null;
+  if (participantHome && onlyChain) {
+    redirect(`/chains/${onlyChain.id}`);
+  }
 
   return (
     <div>

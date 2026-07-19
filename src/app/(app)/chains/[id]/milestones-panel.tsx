@@ -42,6 +42,7 @@ export function MilestonesPanel({
   myParticipantId,
   myOrganisationId,
   isGuest,
+  canManage,
   readOnly,
   milestones,
   nodes,
@@ -50,6 +51,7 @@ export function MilestonesPanel({
   myParticipantId: string | null;
   myOrganisationId: string | null;
   isGuest: boolean;
+  canManage: boolean;
   readOnly: boolean;
   milestones: MilestoneRow[];
   nodes: NodeOption[];
@@ -131,7 +133,8 @@ export function MilestonesPanel({
             // A guest can confirm ONLY milestones flagged guest_confirmable
             // that are still outstanding — mirrors the database's own
             // enforcement (0012_guest_capabilities.sql).
-            const canConfirm = isGuest && m.guest_confirmable && m.status !== "completed";
+            const canConfirm =
+              isGuest && !canManage && m.guest_confirmable && m.status !== "completed";
 
             return (
               <li key={m.id} className="flex items-center justify-between gap-3">
@@ -159,7 +162,7 @@ export function MilestonesPanel({
                   <Button size="sm" variant="outline" disabled={isPending} onClick={() => handleConfirm(m)}>
                     Confirm
                   </Button>
-                ) : isGuest || readOnly ? (
+                ) : !canManage || readOnly ? (
                   <span className="text-xs capitalize text-muted-foreground">
                     {m.status.replace("_", " ")}
                   </span>
@@ -183,7 +186,7 @@ export function MilestonesPanel({
         </ul>
       )}
 
-      {!isGuest && !readOnly &&
+      {canManage && !readOnly &&
         (showForm ? (
           <form onSubmit={handleCreate} className="space-y-2 border-t border-border pt-4">
             {nodes.length > 0 && (

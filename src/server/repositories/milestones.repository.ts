@@ -1,6 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 import type { Database } from "@/types/database";
+import { createAdminClient } from "@/lib/supabase/admin";
 
 type TypedClient = SupabaseClient<Database, "public", Database["public"]>;
 
@@ -48,24 +49,27 @@ export async function insertMilestonesFromTemplates(
     chainId: string;
     chainNodeId: string;
     templates: { id: string; name: string; guest_confirmable: boolean }[];
-    /** Applied to the first template only (see chains.ts) — the milestone
-     * that's implicitly already true by the act of creating the chain. */
-    completeFirst: boolean;
+    /** The milestone that's implicitly already true when a chain is created. */
+    completedTemplateName: string;
     recordedByParticipantId: string;
   }
 ) {
   if (input.templates.length === 0) return;
 
-  const rows = input.templates.map((template, index) => ({
-    chain_id: input.chainId,
-    chain_node_id: input.chainNodeId,
-    template_id: template.id,
-    title: template.name,
-    guest_confirmable: template.guest_confirmable,
-    status: index === 0 && input.completeFirst ? ("completed" as const) : ("pending" as const),
-    completed_at: index === 0 && input.completeFirst ? new Date().toISOString() : null,
-    recorded_by_participant_id: index === 0 && input.completeFirst ? input.recordedByParticipantId : null,
-  }));
+  const completedTemplateName = input.completedTemplateName.trim().toLowerCase();
+  const rows = input.templates.map((template) => {
+    const completed = template.name.trim().toLowerCase() === completedTemplateName;
+    return {
+      chain_id: input.chainId,
+      chain_node_id: input.chainNodeId,
+      template_id: template.id,
+      title: template.name,
+      guest_confirmable: template.guest_confirmable,
+      status: completed ? ("completed" as const) : ("pending" as const),
+      completed_at: completed ? new Date().toISOString() : null,
+      recorded_by_participant_id: completed ? input.recordedByParticipantId : null,
+    };
+  });
 
   const { error } = await supabase.from("milestones").insert(rows);
   if (error) throw error;
@@ -96,9 +100,10 @@ export async function insertMilestone(
 export async function confirmMilestone(
   supabase: TypedClient,
   milestoneId: string,
+  chainId: string,
   recordedByParticipantId: string
 ) {
-  const { error } = await supabase
+  const { data, error } = await supabase
     .from("milestones")
     .update({
       status: "completed",
@@ -106,9 +111,13 @@ export async function confirmMilestone(
       source: "manual",
       recorded_by_participant_id: recordedByParticipantId,
     })
-    .eq("id", milestoneId);
+    .eq("id", milestoneId)
+    .eq("chain_id", chainId)
+    .select("id")
+    .maybeSingle();
 
   if (error) throw error;
+  if (!data) throw new Error("Milestone not found");
 }
 
 /**
@@ -118,13 +127,17 @@ export async function confirmMilestone(
  * (0012_guest_capabilities.sql) only restricts callers whose access_mode
  * actually is 'guest', so this is already safe to expose without new RLS.
  */
-export async function updateMilestoneStatus(
-  supabase: TypedClient,
+export async function updateMilestoneStatusAsChainCreator(
   milestoneId: string,
+  chainId: string,
   status: Database["public"]["Tables"]["milestones"]["Row"]["status"],
   recordedByParticipantId: string
 ) {
-  const { error } = await supabase
+  // Compatibility path for guest-mode chain creators before migration 0018's
+  // creator-admin exception reaches every database environment. The service
+  // verifies creator ownership and participant identity before calling this.
+  const admin = createAdminClient();
+  const { data, error } = await admin
     .from("milestones")
     .update({
       status,
@@ -132,7 +145,35 @@ export async function updateMilestoneStatus(
       source: "manual",
       recorded_by_participant_id: recordedByParticipantId,
     })
-    .eq("id", milestoneId);
+    .eq("id", milestoneId)
+    .eq("chain_id", chainId)
+    .select("id")
+    .maybeSingle();
 
   if (error) throw error;
+  if (!data) throw new Error("Milestone not found");
+}
+
+export async function updateMilestoneStatus(
+  supabase: TypedClient,
+  milestoneId: string,
+  chainId: string,
+  status: Database["public"]["Tables"]["milestones"]["Row"]["status"],
+  recordedByParticipantId: string
+) {
+  const { data, error } = await supabase
+    .from("milestones")
+    .update({
+      status,
+      completed_at: status === "completed" ? new Date().toISOString() : null,
+      source: "manual",
+      recorded_by_participant_id: recordedByParticipantId,
+    })
+    .eq("id", milestoneId)
+    .eq("chain_id", chainId)
+    .select("id")
+    .maybeSingle();
+
+  if (error) throw error;
+  if (!data) throw new Error("Milestone not found");
 }

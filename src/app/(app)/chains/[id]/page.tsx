@@ -53,6 +53,7 @@ const ACTION_LABELS: Record<string, string> = {
   "task.status_changed": "Task updated",
   "participant.added_proxy": "Proxy participant added",
   "chain_node.added": "Linked transaction added",
+  "chain_node.participants_updated": "Transaction parties updated",
 };
 
 export default async function ChainDetailPage({
@@ -84,7 +85,10 @@ export default async function ChainDetailPage({
   const myParticipant = participants.find((p) => p.profile_id === user.id);
   const isGuest = myParticipant?.access_mode === "guest";
   const isReadOnlyObserver = !myParticipant && workspace.mode === "firm";
-  const canManageChain = Boolean(myParticipant && !isGuest);
+  const isChainCreator = chain.created_by_profile_id === user.id;
+  const canManageChain = Boolean(
+    myParticipant && (isChainCreator || myParticipant.access_mode !== "guest")
+  );
   const myOrganisationId =
     myParticipant?.organisation_id ?? workspace.organisationId;
   const allowedCategories = getAllowedDocumentCategories(
@@ -189,9 +193,9 @@ export default async function ChainDetailPage({
 
       {isGuest && (
         <div className="mb-5 rounded-2xl border border-sky-200 bg-sky-50 px-4 py-3 text-sm text-sky-900">
-          You have guest access to this one chain. You can see shared updates,
-          confirm anything asked of you, comment, and upload documents you&apos;re
-          asked for.
+          {canManageChain
+            ? "You created this chain, so you can manage its transactions, participants, and shared progress without needing a business account."
+            : "You have access to this one chain. You can see shared progress, confirm anything asked of you, comment, and upload requested documents."}
         </div>
       )}
 
@@ -222,7 +226,7 @@ export default async function ChainDetailPage({
               <TopologyPanel
                 chainId={chain.id}
                 myParticipantId={myParticipant?.id ?? null}
-                readOnly={isReadOnlyObserver || isGuest}
+                canManage={canManageChain}
                 nodes={nodeRows}
                 participants={participantRows}
                 milestones={milestoneRows}
@@ -243,6 +247,7 @@ export default async function ChainDetailPage({
                 myParticipantId={myParticipant?.id ?? null}
                 myOrganisationId={myOrganisationId}
                 isGuest={isGuest}
+                canManage={canManageChain}
                 readOnly={isReadOnlyObserver}
                 milestones={milestones}
                 nodes={nodeRows}
@@ -315,15 +320,16 @@ export default async function ChainDetailPage({
             </CardContent>
           </Card>
 
-          {!isGuest && (
-            <Card>
+          <Card>
               <CardHeader className="flex-row items-center justify-between space-y-0">
                 <CardTitle>Activity</CardTitle>
-                <Button asChild variant="ghost" size="sm">
-                  <Link href={`/chains/${chain.id}/audit`}>
-                    <ScrollText className="h-4 w-4" /> Full audit log
-                  </Link>
-                </Button>
+                {!isGuest && (
+                  <Button asChild variant="ghost" size="sm">
+                    <Link href={`/chains/${chain.id}/audit`}>
+                      <ScrollText className="h-4 w-4" /> Full audit log
+                    </Link>
+                  </Button>
+                )}
               </CardHeader>
               <CardContent>
                 {activity.length === 0 ? (
@@ -353,7 +359,6 @@ export default async function ChainDetailPage({
                 )}
               </CardContent>
             </Card>
-          )}
         </div>
 
         <div className="space-y-4">
@@ -403,7 +408,7 @@ export default async function ChainDetailPage({
             </CardContent>
           </Card>
 
-          {!isGuest && (
+          {(!isGuest || canManageChain) && (
             <Card>
               <CardHeader>
                 <CardTitle>Invitations</CardTitle>

@@ -16,7 +16,10 @@ import {
   Users,
 } from "lucide-react";
 
-import { addLinkedTransactionAction } from "@/app/(app)/chains/[id]/topology-actions";
+import {
+  addLinkedTransactionAction,
+  updateTransactionParticipantsAction,
+} from "@/app/(app)/chains/[id]/topology-actions";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -93,14 +96,14 @@ function initials(name: string) {
 export function TopologyPanel({
   chainId,
   myParticipantId,
-  readOnly,
+  canManage,
   nodes,
   participants,
   milestones,
 }: {
   chainId: string;
   myParticipantId: string | null;
-  readOnly: boolean;
+  canManage: boolean;
   nodes: NodeRow[];
   participants: ParticipantRow[];
   milestones: ProgressMilestone[];
@@ -110,6 +113,8 @@ export function TopologyPanel({
   const [city, setCity] = useState("");
   const [postcode, setPostcode] = useState("");
   const [dependsOn, setDependsOn] = useState(nodes[0]?.id ?? "");
+  const [sellerParticipantId, setSellerParticipantId] = useState("");
+  const [buyerParticipantId, setBuyerParticipantId] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
@@ -176,6 +181,8 @@ export function TopologyPanel({
         postcode,
         dependsOnNodeId: dependsOn,
         actorParticipantId: myParticipantId,
+        sellerParticipantId: sellerParticipantId || null,
+        buyerParticipantId: buyerParticipantId || null,
       });
       if (result?.error) {
         setError(result.error);
@@ -184,6 +191,8 @@ export function TopologyPanel({
       setAddressLine1("");
       setCity("");
       setPostcode("");
+      setSellerParticipantId("");
+      setBuyerParticipantId("");
       setShowForm(false);
     });
   }
@@ -275,7 +284,7 @@ export function TopologyPanel({
               Arrows show which property must progress before the next can complete.
             </p>
           </div>
-          {!readOnly && !showForm && nodes.length > 0 && (
+          {canManage && !showForm && nodes.length > 0 && (
             <Button variant="outline" size="sm" onClick={() => setShowForm(true)}>
               <Plus className="h-4 w-4" /> Add transaction
             </Button>
@@ -347,6 +356,13 @@ export function TopologyPanel({
                       </div>
                       <SidePerson label="Buying" participant={buyer} align="right" />
                     </div>
+                    {canManage && (
+                      <TransactionAssignmentEditor
+                        chainId={chainId}
+                        node={node}
+                        participants={participants}
+                      />
+                    )}
                   </article>
                 </li>
               );
@@ -355,7 +371,7 @@ export function TopologyPanel({
         )}
       </div>
 
-      {!readOnly && showForm && (
+      {canManage && showForm && (
         <form onSubmit={handleSubmit} className="space-y-3 rounded-xl border border-border bg-muted/30 p-4">
           <div className="flex items-start gap-2">
             <Link2 className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
@@ -391,6 +407,36 @@ export function TopologyPanel({
               </option>
             ))}
           </Select>
+          <div className="grid gap-2 sm:grid-cols-2">
+            <Select
+              aria-label="Seller for new transaction"
+              value={sellerParticipantId}
+              onChange={(event) => setSellerParticipantId(event.target.value)}
+            >
+              <option value="">Seller not assigned yet</option>
+              {participants
+                .filter((participant) => participant.role === "seller")
+                .map((participant) => (
+                  <option key={participant.id} value={participant.id}>
+                    Seller: {participant.name}
+                  </option>
+                ))}
+            </Select>
+            <Select
+              aria-label="Buyer for new transaction"
+              value={buyerParticipantId}
+              onChange={(event) => setBuyerParticipantId(event.target.value)}
+            >
+              <option value="">Buyer not assigned yet</option>
+              {participants
+                .filter((participant) => participant.role === "buyer")
+                .map((participant) => (
+                  <option key={participant.id} value={participant.id}>
+                    Buyer: {participant.name}
+                  </option>
+                ))}
+            </Select>
+          </div>
           {error && <p className="text-xs text-destructive">{error}</p>}
           <div className="flex gap-2">
             <Button type="submit" size="sm" disabled={isPending}>
@@ -409,6 +455,111 @@ export function TopologyPanel({
             </Button>
           </div>
         </form>
+      )}
+    </section>
+  );
+}
+
+function TransactionAssignmentEditor({
+  chainId,
+  node,
+  participants,
+}: {
+  chainId: string;
+  node: NodeRow;
+  participants: ParticipantRow[];
+}) {
+  const [sellerParticipantId, setSellerParticipantId] = useState(
+    node.sellerParticipantId ?? ""
+  );
+  const [buyerParticipantId, setBuyerParticipantId] = useState(
+    node.buyerParticipantId ?? ""
+  );
+  const [message, setMessage] = useState<string | null>(null);
+  const [isPending, startTransition] = useTransition();
+  const sellerOptions = participants.filter((participant) => participant.role === "seller");
+  const buyerOptions = participants.filter((participant) => participant.role === "buyer");
+  const unchanged =
+    sellerParticipantId === (node.sellerParticipantId ?? "") &&
+    buyerParticipantId === (node.buyerParticipantId ?? "");
+
+  function saveAssignments() {
+    setMessage(null);
+    startTransition(async () => {
+      const result = await updateTransactionParticipantsAction({
+        chainId,
+        nodeId: node.id,
+        sellerParticipantId: sellerParticipantId || null,
+        buyerParticipantId: buyerParticipantId || null,
+      });
+      setMessage(result?.error ?? "Transaction parties updated.");
+    });
+  }
+
+  return (
+    <section className="border-t border-border bg-slate-50/70 px-4 py-3" aria-label="Assign transaction parties">
+      <div className="grid gap-2 sm:grid-cols-[1fr_1fr_auto] sm:items-end">
+        <label className="space-y-1 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+          Seller
+          <Select
+            value={sellerParticipantId}
+            onChange={(event) => {
+              setSellerParticipantId(event.target.value);
+              setMessage(null);
+            }}
+            className="mt-1 bg-white text-xs normal-case tracking-normal"
+          >
+            <option value="">Not assigned</option>
+            {sellerOptions.map((participant) => (
+              <option key={participant.id} value={participant.id}>
+                {participant.name}
+              </option>
+            ))}
+          </Select>
+        </label>
+        <label className="space-y-1 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+          Buyer
+          <Select
+            value={buyerParticipantId}
+            onChange={(event) => {
+              setBuyerParticipantId(event.target.value);
+              setMessage(null);
+            }}
+            className="mt-1 bg-white text-xs normal-case tracking-normal"
+          >
+            <option value="">Not assigned</option>
+            {buyerOptions.map((participant) => (
+              <option key={participant.id} value={participant.id}>
+                {participant.name}
+              </option>
+            ))}
+          </Select>
+        </label>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          disabled={isPending || unchanged}
+          onClick={saveAssignments}
+        >
+          {isPending ? "Saving…" : "Save parties"}
+        </Button>
+      </div>
+      {message && (
+        <p
+          className={cn(
+            "mt-2 text-xs",
+            message === "Transaction parties updated." ? "text-emerald-700" : "text-destructive"
+          )}
+          role="status"
+        >
+          {message}
+        </p>
+      )}
+      {(sellerOptions.length === 0 || buyerOptions.length === 0) && (
+        <p className="mt-2 text-[11px] text-muted-foreground">
+          Invite the missing seller or buyer, then return here to attach them to this transaction.
+        </p>
       )}
     </section>
   );
@@ -554,7 +705,7 @@ function ChainProgressBoard({
         </div>
       )}
 
-      <div className="space-y-3 sm:hidden">
+      <ol className="space-y-4" aria-label="Every transaction and conveyancing stage">
         {nodes.map((node, nodeIndex) => {
           const seller = participantForNodeSide(node, "seller");
           const buyer = participantForNodeSide(node, "buyer");
@@ -573,150 +724,100 @@ function ChainProgressBoard({
           const nodeProgress = Math.round((nodeComplete / stages.length) * 100);
 
           return (
-            <article key={node.id} className="rounded-xl border border-border bg-card p-4 shadow-sm">
-              <div className="flex items-start justify-between gap-3">
-                <div className="min-w-0">
-                  <p className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
-                    Customer {nodeIndex + 1}
-                  </p>
-                  <p className="mt-0.5 truncate text-sm font-semibold text-foreground">
-                    {seller?.name ?? "Seller not assigned"}
-                    <span className="mx-1 text-muted-foreground">→</span>
-                    {buyer?.name ?? "Buyer not assigned"}
-                  </p>
-                  <p className="mt-0.5 truncate text-xs text-muted-foreground">{node.address}</p>
+            <li key={node.id} className="relative">
+              {nodeIndex > 0 && (
+                <div className="mx-auto -mt-4 flex h-8 w-px items-center justify-center bg-primary/25" aria-hidden="true">
+                  <ArrowDown className="h-4 w-4 shrink-0 text-primary" />
                 </div>
-                <Badge variant={nodeProgress === 100 ? "success" : "outline"}>
-                  {nodeProgress}%
-                </Badge>
-              </div>
-
-              <div className="mt-4 flex items-center gap-1" aria-label={`${nodeProgress}% complete`}>
-                {nodeMilestones.map(({ stage, milestone }) => (
-                  <span
-                    key={stage.title}
-                    title={`${stage.title}: ${progressStatusLabel(milestone?.status)}`}
-                    className={cn(
-                      "h-2 flex-1 rounded-full",
-                      progressStatusClass(milestone?.status, "bar")
-                    )}
-                  />
-                ))}
-              </div>
-
-              <div className="mt-3 rounded-lg bg-muted/50 px-3 py-2.5">
-                <p className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
-                  {current?.milestone?.status === "blocked" ? "Blocked at" : "Current stage"}
-                </p>
-                <p className="mt-0.5 text-sm font-medium text-foreground">
-                  {nodeProgress === 100 ? "All stages complete" : current?.stage.title ?? "Not started"}
-                </p>
-                {current?.milestone?.dueDate && (
-                  <p className="mt-0.5 text-xs text-muted-foreground">
-                    Due {formatDueDate(current.milestone.dueDate)}
-                  </p>
-                )}
-              </div>
-            </article>
-          );
-        })}
-      </div>
-
-      <div className="hidden overflow-x-auto rounded-xl border border-border sm:block">
-        <div
-          className="grid min-w-max bg-card"
-          style={{
-            gridTemplateColumns: `minmax(240px, 1.4fr) repeat(${stages.length}, minmax(155px, 1fr))`,
-            minWidth: `${240 + stages.length * 155}px`,
-          }}
-        >
-          <div className="sticky left-0 z-20 border-b border-r border-border bg-muted px-4 py-3">
-            <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-              Customer / property
-            </span>
-          </div>
-          {stages.map((stage, index) => (
-            <div key={stage.title} className="border-b border-r border-border bg-muted px-3 py-3 last:border-r-0">
-              <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-                Step {index + 1}
-              </span>
-              <p className="mt-1 text-xs font-semibold leading-snug text-foreground">{stage.title}</p>
-            </div>
-          ))}
-
-          {nodes.map((node, nodeIndex) => {
-            const seller = participantForNodeSide(node, "seller");
-            const buyer = participantForNodeSide(node, "buyer");
-            const completedForNode = stages.filter(
-              (stage) => milestoneFor(node.id, stage.title)?.status === "completed"
-            ).length;
-            const nodeProgress = Math.round((completedForNode / stages.length) * 100);
-
-            return (
-              <div key={node.id} className="contents">
-                <div className="sticky left-0 z-10 border-b border-r border-border bg-card px-4 py-4 last:border-b-0">
-                  <div className="flex items-start gap-3">
-                    <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary text-xs font-semibold text-primary-foreground">
+              )}
+              <article className="overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
+                <header className="grid gap-4 border-b border-border bg-muted/25 p-4 md:grid-cols-[minmax(0,1fr)_minmax(220px,0.65fr)] md:items-center">
+                  <div className="flex min-w-0 items-start gap-3">
+                    <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary text-sm font-semibold text-primary-foreground">
                       {nodeIndex + 1}
                     </span>
                     <div className="min-w-0">
-                      <p className="truncate text-xs font-semibold text-foreground">
-                        {seller?.name ?? "Seller not assigned"} → {buyer?.name ?? "Buyer not assigned"}
+                      <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                        Property transaction
                       </p>
-                      <p className="mt-0.5 truncate text-[11px] text-muted-foreground">{node.address}</p>
-                      <div className="mt-2 flex items-center gap-2">
-                        <span className="h-1.5 w-16 overflow-hidden rounded-full bg-secondary">
-                          <span
-                            className="block h-full rounded-full bg-primary"
-                            style={{ width: `${nodeProgress}%` }}
-                          />
+                      <h4 className="mt-0.5 truncate text-sm font-semibold text-foreground">{node.address}</h4>
+                      <p className="mt-1 flex flex-wrap items-center gap-1 text-xs text-muted-foreground">
+                        <span className={seller ? "text-foreground" : "text-amber-700"}>
+                          {seller?.name ?? "Seller not assigned"}
                         </span>
-                        <span className="text-[10px] font-medium text-muted-foreground">{nodeProgress}%</span>
-                      </div>
+                        <ArrowRight className="h-3 w-3" aria-hidden="true" />
+                        <span className={buyer ? "text-foreground" : "text-amber-700"}>
+                          {buyer?.name ?? "Buyer not assigned"}
+                        </span>
+                      </p>
                     </div>
                   </div>
-                </div>
 
-                {stages.map((stage) => {
-                  const milestone = milestoneFor(node.id, stage.title);
-                  const overdue =
-                    Boolean(milestone?.dueDate) &&
-                    milestone?.status !== "completed" &&
-                    new Date(`${milestone!.dueDate}T23:59:59`).getTime() < Date.now();
-
-                  return (
-                    <div
-                      key={`${node.id}-${stage.title}`}
-                      className={cn(
-                        "border-b border-r border-border px-3 py-4 last:border-r-0",
-                        progressStatusClass(milestone?.status, "cell")
-                      )}
-                    >
-                      <div className="flex items-start gap-2">
-                        <ProgressIcon status={milestone?.status} />
-                        <div className="min-w-0">
-                          <p className="text-xs font-medium text-foreground">
-                            {progressStatusLabel(milestone?.status)}
-                          </p>
-                          {milestone?.dueDate ? (
-                            <p className={cn("mt-1 text-[10px]", overdue ? "font-medium text-red-700" : "text-muted-foreground")}>
-                              {overdue ? "Overdue" : "Due"} {formatDueDate(milestone.dueDate)}
-                            </p>
-                          ) : (
-                            <p className="mt-1 text-[10px] text-muted-foreground">
-                              {milestone ? "No due date" : "Awaiting setup"}
-                            </p>
-                          )}
-                        </div>
+                  <div className="rounded-xl border border-border bg-background/80 px-3 py-2.5">
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                          {current?.milestone?.status === "blocked" ? "Blocked at" : "Current stage"}
+                        </p>
+                        <p className="truncate text-sm font-semibold text-foreground">
+                          {nodeProgress === 100 ? "All stages complete" : current?.stage.title ?? "Not started"}
+                        </p>
                       </div>
+                      <Badge variant={nodeProgress === 100 ? "success" : current?.milestone?.status === "blocked" ? "destructive" : "outline"}>
+                        {nodeProgress}%
+                      </Badge>
                     </div>
-                  );
-                })}
-              </div>
-            );
-          })}
-        </div>
-      </div>
+                    <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-secondary" aria-label={`${nodeProgress}% complete`}>
+                      <div className="h-full rounded-full bg-primary" style={{ width: `${nodeProgress}%` }} />
+                    </div>
+                  </div>
+                </header>
+
+                <ol className="grid gap-px bg-border sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4" aria-label={`Stages for ${node.address}`}>
+                  {nodeMilestones.map(({ stage, milestone }, stageIndex) => {
+                    const overdue =
+                      Boolean(milestone?.dueDate) &&
+                      milestone?.status !== "completed" &&
+                      new Date(`${milestone!.dueDate}T23:59:59`).getTime() < Date.now();
+                    const isCurrent = current?.stage.title === stage.title && nodeProgress < 100;
+
+                    return (
+                      <li
+                        key={stage.title}
+                        className={cn(
+                          "min-h-24 bg-card p-3",
+                          progressStatusClass(milestone?.status, "cell"),
+                          isCurrent && "ring-2 ring-inset ring-primary/35"
+                        )}
+                      >
+                        <div className="flex items-start gap-2.5">
+                          <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-background text-[10px] font-semibold text-muted-foreground shadow-sm ring-1 ring-border">
+                            {stageIndex + 1}
+                          </span>
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-start justify-between gap-2">
+                              <p className="text-xs font-semibold leading-snug text-foreground">{stage.title}</p>
+                              <ProgressIcon status={milestone?.status} />
+                            </div>
+                            <p className="mt-1 text-[10px] font-medium text-muted-foreground">
+                              {progressStatusLabel(milestone?.status)}
+                            </p>
+                            {milestone?.dueDate && (
+                              <p className={cn("mt-1 text-[10px]", overdue ? "font-semibold text-red-700" : "text-muted-foreground")}>
+                                {overdue ? "Overdue" : "Due"} {formatDueDate(milestone.dueDate)}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                      </li>
+                    );
+                  })}
+                </ol>
+              </article>
+            </li>
+          );
+        })}
+      </ol>
 
       <div className="flex flex-wrap gap-x-4 gap-y-2 text-[11px] text-muted-foreground">
         {([

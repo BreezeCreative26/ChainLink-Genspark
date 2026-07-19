@@ -201,3 +201,7 @@ and both firms-on-one-chain and internal/shared visibility simultaneously:
 
 Run it against a local Supabase instance with `supabase db reset` (which
 runs all migrations, then `seed.sql`).
+
+## Full-chain progression
+
+Migration `0018_full_chain_progress.sql` completes the open-chain progression model. Every `chain_node` receives the canonical UK conveyancing stages, while `seller_participant_id` and `buyer_participant_id` identify the private parties on that transaction. Accepted buyer/seller invitations attach automatically only when one vacant side is unambiguous; managers assign parties explicitly for branching chains. The chain creator is the initial administrator even when their participant access mode is `guest`, provided their participant record remains active. RLS and validation triggers continue to enforce chain membership, side roles, and shared/internal visibility.

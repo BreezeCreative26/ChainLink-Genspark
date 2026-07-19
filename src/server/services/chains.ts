@@ -221,10 +221,51 @@ export async function addLinkedTransaction(
     postcode?: string;
     dependsOnNodeId: string;
     actorParticipantId: string;
+    sellerParticipantId?: string | null;
+    buyerParticipantId?: string | null;
   }
 ) {
   if (!params.addressLine1.trim()) {
     throw new AppError("Address is required.");
+  }
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) throw new AppError("Not authenticated");
+
+  const management = await chainsRepo.getChainManagementContext(
+    supabase,
+    params.chainId,
+    user.id
+  );
+  if (!management.canManage || management.participant?.id !== params.actorParticipantId) {
+    throw new AppError("You do not have permission to manage this chain.");
+  }
+
+  const assignmentIds = [params.sellerParticipantId, params.buyerParticipantId].filter(
+    (id): id is string => Boolean(id)
+  );
+  const assignments = await chainsRepo.listAssignableParticipants(
+    supabase,
+    params.chainId,
+    assignmentIds
+  );
+  if (
+    params.sellerParticipantId &&
+    !assignments.some(
+      (participant) => participant.id === params.sellerParticipantId && participant.role === "seller"
+    )
+  ) {
+    throw new AppError("Choose an active seller from this chain.");
+  }
+  if (
+    params.buyerParticipantId &&
+    !assignments.some(
+      (participant) => participant.id === params.buyerParticipantId && participant.role === "buyer"
+    )
+  ) {
+    throw new AppError("Choose an active buyer from this chain.");
   }
 
   const property = await chainsRepo.insertProperty(supabase, {
@@ -238,6 +279,8 @@ export async function addLinkedTransaction(
     chain_id: params.chainId,
     property_id: property.id,
     depends_on_node_id: params.dependsOnNodeId,
+    seller_participant_id: params.sellerParticipantId ?? null,
+    buyer_participant_id: params.buyerParticipantId ?? null,
   });
 
   // Every linked property is a distinct customer transaction and needs its
@@ -267,6 +310,67 @@ export async function addLinkedTransaction(
   });
 
   return node;
+}
+
+export async function updateTransactionParticipants(
+  supabase: TypedClient,
+  params: {
+    chainId: string;
+    nodeId: string;
+    sellerParticipantId: string | null;
+    buyerParticipantId: string | null;
+  }
+) {
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) throw new AppError("Not authenticated");
+
+  const management = await chainsRepo.getChainManagementContext(
+    supabase,
+    params.chainId,
+    user.id
+  );
+  if (!management.canManage || !management.participant) {
+    throw new AppError("You do not have permission to manage this chain.");
+  }
+
+  const assignmentIds = [params.sellerParticipantId, params.buyerParticipantId].filter(
+    (id): id is string => Boolean(id)
+  );
+  const assignments = await chainsRepo.listAssignableParticipants(
+    supabase,
+    params.chainId,
+    assignmentIds
+  );
+
+  if (
+    params.sellerParticipantId &&
+    !assignments.some(
+      (participant) => participant.id === params.sellerParticipantId && participant.role === "seller"
+    )
+  ) {
+    throw new AppError("Choose an active seller from this chain.");
+  }
+  if (
+    params.buyerParticipantId &&
+    !assignments.some(
+      (participant) => participant.id === params.buyerParticipantId && participant.role === "buyer"
+    )
+  ) {
+    throw new AppError("Choose an active buyer from this chain.");
+  }
+
+  await chainsRepo.updateChainNodeParticipants(supabase, params);
+  await chainsRepo.insertActivityLog(supabase, {
+    chain_id: params.chainId,
+    actor_participant_id: management.participant.id,
+    action: "chain_node.participants_updated",
+    entity_type: "chain_node",
+    entity_id: params.nodeId,
+    source: "manual",
+    visibility: "shared",
+  });
 }
 
 export async function currentUserHasProfessionalStanding(supabase: TypedClient) {

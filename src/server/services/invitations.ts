@@ -251,6 +251,17 @@ export async function acceptInvitation(
     resultingParticipantId: participant.id,
   });
 
+  // Attach accepted buyers/sellers automatically when exactly one transaction
+  // side is vacant. On a branching chain the mapping is intentionally left for
+  // a chain manager to choose in the workspace rather than guessed.
+  if (check.role === "seller" || check.role === "buyer") {
+    await chainsRepo.attachParticipantToUnambiguousTransaction({
+      chainId: check.chainId,
+      participantId: participant.id,
+      role: check.role,
+    });
+  }
+
   await chainsRepo.insertActivityLog(supabase, {
     chain_id: check.chainId,
     actor_participant_id: participant.id,

@@ -454,3 +454,9 @@ Build Order" plus the "Immediate Gaps" list, in that priority order.
   needed? Flagged above as a legal-review item; the schema change involved
   (likely a `document_access_grants` table) is real scope, not a small
   addition.
+
+### Open-chain progression and creator administration
+
+- **The canonical participant experience is the visual chain workspace, not a summary dashboard.** A participant with exactly one chain is redirected directly to `/chains/[id]`. Every transaction is displayed as a card containing its seller, buyer, property, current stage and complete ordered stage journey, so the same interface remains readable for two people or a much larger chain.
+- **A guest access mode does not remove creator administration.** Buyers and sellers correctly remain guest-mode participants, but the active participant who created the chain is its initial administrator. They may invite parties, assign transaction sides and manage shared milestones; ordinary invited guests keep the narrow confirmation-only capability.
+- **Accepted seller/buyer participants attach to transaction sides only when unambiguous.** A one-vacancy mapping is automatic. Branching chains require an explicit manager choice rather than silently attaching a party to the wrong property.

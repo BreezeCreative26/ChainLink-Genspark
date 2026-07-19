@@ -1,10 +1,36 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 import type { Database } from "@/types/database";
+import { AppError } from "@/lib/errors";
 import * as milestonesRepo from "@/server/repositories/milestones.repository";
 import * as chainsRepo from "@/server/repositories/chains.repository";
 
 type TypedClient = SupabaseClient<Database, "public", Database["public"]>;
+
+async function requireCurrentParticipant(
+  supabase: TypedClient,
+  chainId: string,
+  participantId: string
+) {
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) throw new AppError("Not authenticated");
+
+  const management = await chainsRepo.getChainManagementContext(
+    supabase,
+    chainId,
+    user.id
+  );
+
+  const participant = management.participant;
+  if (!participant || participant.id !== participantId) {
+    throw new AppError("You do not have access to update this chain.");
+  }
+
+  return { participant, canManage: management.canManage };
+}
 
 export async function listMilestones(supabase: TypedClient, chainId: string) {
   return milestonesRepo.listMilestonesForChain(supabase, chainId);
@@ -33,7 +59,7 @@ export async function applyTemplatesToNewChain(
       name: t.name,
       guest_confirmable: t.guest_confirmable,
     })),
-    completeFirst: true,
+    completedTemplateName: "Offer accepted",
     recordedByParticipantId: params.creatorParticipantId,
   });
 }
@@ -57,6 +83,15 @@ export async function createMilestone(
     createdByParticipantId: string;
   }
 ) {
+  const management = await requireCurrentParticipant(
+    supabase,
+    params.chainId,
+    params.createdByParticipantId
+  );
+  if (!management.canManage) {
+    throw new AppError("You do not have permission to manage milestones on this chain.");
+  }
+
   const milestone = await milestonesRepo.insertMilestone(supabase, {
     chain_id: params.chainId,
     chain_node_id: params.chainNodeId ?? null,
@@ -94,7 +129,35 @@ export async function updateMilestoneStatus(
   supabase: TypedClient,
   params: { chainId: string; milestoneId: string; milestoneTitle: string; status: Database["public"]["Tables"]["milestones"]["Row"]["status"]; myParticipantId: string }
 ) {
-  await milestonesRepo.updateMilestoneStatus(supabase, params.milestoneId, params.status, params.myParticipantId);
+  const management = await requireCurrentParticipant(
+    supabase,
+    params.chainId,
+    params.myParticipantId
+  );
+  if (!management.canManage) {
+    throw new AppError("You do not have permission to manage milestones on this chain.");
+  }
+
+  // Buyer/seller creators remain guest-mode participants by design, but are
+  // the initial chain administrators. Until migration 0018 is present in an
+  // environment, its guest trigger still blocks general status changes, so
+  // use the narrowly scoped server-only compatibility write for that case.
+  if (management.participant.access_mode === "guest") {
+    await milestonesRepo.updateMilestoneStatusAsChainCreator(
+      params.milestoneId,
+      params.chainId,
+      params.status,
+      params.myParticipantId
+    );
+  } else {
+    await milestonesRepo.updateMilestoneStatus(
+      supabase,
+      params.milestoneId,
+      params.chainId,
+      params.status,
+      params.myParticipantId
+    );
+  }
 
   await chainsRepo.insertActivityLog(supabase, {
     chain_id: params.chainId,
@@ -119,7 +182,13 @@ export async function confirmMilestone(
   supabase: TypedClient,
   params: { chainId: string; milestoneId: string; milestoneTitle: string; myParticipantId: string }
 ) {
-  await milestonesRepo.confirmMilestone(supabase, params.milestoneId, params.myParticipantId);
+  await requireCurrentParticipant(supabase, params.chainId, params.myParticipantId);
+  await milestonesRepo.confirmMilestone(
+    supabase,
+    params.milestoneId,
+    params.chainId,
+    params.myParticipantId
+  );
 
   await chainsRepo.insertActivityLog(supabase, {
     chain_id: params.chainId,

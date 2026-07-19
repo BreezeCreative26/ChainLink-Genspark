@@ -2,6 +2,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { randomUUID } from "node:crypto";
 
 import type { Database } from "@/types/database";
+import { createAdminClient } from "@/lib/supabase/admin";
 
 type TypedClient = SupabaseClient<Database, "public", Database["public"]>;
 
@@ -174,6 +175,118 @@ export async function getParticipantWorkspaceContext(
   return data;
 }
 
+export async function getChainManagementContext(
+  supabase: TypedClient,
+  chainId: string,
+  profileId: string
+) {
+  const [{ data: chain, error: chainError }, { data: participant, error: participantError }] =
+    await Promise.all([
+      supabase
+        .from("chains")
+        .select("created_by_profile_id")
+        .eq("id", chainId)
+        .maybeSingle(),
+      supabase
+        .from("chain_participants")
+        .select("id, access_mode")
+        .eq("chain_id", chainId)
+        .eq("profile_id", profileId)
+        .eq("status", "active")
+        .limit(1)
+        .maybeSingle(),
+    ]);
+
+  if (chainError) throw chainError;
+  if (participantError) throw participantError;
+
+  return {
+    participant,
+    canManage: Boolean(
+      participant &&
+        (chain?.created_by_profile_id === profileId || participant.access_mode !== "guest")
+    ),
+  };
+}
+
+export async function listAssignableParticipants(
+  supabase: TypedClient,
+  chainId: string,
+  participantIds: string[]
+) {
+  if (participantIds.length === 0) return [];
+
+  const { data, error } = await supabase
+    .from("chain_participants")
+    .select("id, role")
+    .eq("chain_id", chainId)
+    .eq("status", "active")
+    .in("id", participantIds);
+
+  if (error) throw error;
+  return data;
+}
+
+export async function updateChainNodeParticipants(
+  _supabase: TypedClient,
+  input: {
+    chainId: string;
+    nodeId: string;
+    sellerParticipantId: string | null;
+    buyerParticipantId: string | null;
+  }
+) {
+  // This is the one compatibility write for installations that pre-date the
+  // manager-scoped chain_nodes UPDATE policy in migration 0018. The service
+  // calling this function has already authenticated the user, verified their
+  // active participant record, checked creator/professional management rights,
+  // and validated both participant IDs against this chain and side role. The
+  // admin client is kept here, server-only, and the update is pinned to both
+  // node ID and chain ID. Once every environment has 0018, this remains a
+  // harmless narrow write rather than making production rollout order brittle.
+  const admin = createAdminClient();
+  const { data, error } = await admin
+    .from("chain_nodes")
+    .update({
+      seller_participant_id: input.sellerParticipantId,
+      buyer_participant_id: input.buyerParticipantId,
+    })
+    .eq("id", input.nodeId)
+    .eq("chain_id", input.chainId)
+    .select("id")
+    .maybeSingle();
+
+  if (error) throw error;
+  if (!data) throw new Error("Transaction not found");
+}
+
+export async function attachParticipantToUnambiguousTransaction(input: {
+  chainId: string;
+  participantId: string;
+  role: "seller" | "buyer";
+}) {
+  const admin = createAdminClient();
+  const sideColumn =
+    input.role === "seller" ? "seller_participant_id" : "buyer_participant_id";
+  const { data: vacantNodes, error: selectError } = await admin
+    .from("chain_nodes")
+    .select("id")
+    .eq("chain_id", input.chainId)
+    .is(sideColumn, null);
+
+  if (selectError) throw selectError;
+  if (vacantNodes.length !== 1) return false;
+
+  const { error: updateError } = await admin
+    .from("chain_nodes")
+    .update({ [sideColumn]: input.participantId })
+    .eq("id", vacantNodes[0]!.id)
+    .eq("chain_id", input.chainId);
+
+  if (updateError) throw updateError;
+  return true;
+}
+
 export async function insertProperty(
   supabase: TypedClient,
   input: Database["public"]["Tables"]["properties"]["Insert"]
@@ -248,7 +361,7 @@ export async function getChainByIdForProfile(supabase: TypedClient, chainId: str
     .from("chains")
     .select(
       `
-      id, chain_ref, status, created_at,
+      id, chain_ref, status, created_at, created_by_profile_id,
       chain_participants ( id, role, access_mode, organisation_id, status, profile_id, profiles ( full_name, email ) ),
       properties ( id, address_line1, address_line2, city, postcode, listing_price )
     `
